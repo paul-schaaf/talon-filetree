@@ -28,6 +28,10 @@
       {
         "command": "talon-filetree.openFile",
         "title": "Open File"
+      },
+      {
+        "command": "talon-filetree.renameFile",
+        "title": "Rename File"
       }
     ],
     "viewsContainers": {
@@ -73,5 +77,6 @@
   "dependencies": {
     "mkdirp": "^3.0.0",
     "rimraf": "^5.0.0"
-  }
+  },
+  "extensionDependencies": ["sleistner.vscode-fileutils"]
 }

@@ -409,6 +409,7 @@ export class FileExplorer {
         vscode.commands.registerCommand('talon-filetree.toggleDirectory', (letters) => this.toggleDirectory(letters));
 		vscode.commands.registerCommand('talon-filetree.moveFile', (from, to) => this.moveFile(from, to));
 		vscode.commands.registerCommand('talon-filetree.openFile', (letters) => this.openFile(letters));
+		vscode.commands.registerCommand('talon-filetree.renameFile', (letters) => this.renameFile(letters));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -437,6 +438,17 @@ export class FileExplorer {
 		const uri = id_uri_map.get(itemId);
 		if (uri) {
 			this.openResource(vscode.Uri.file(uri));
+		}
+	}
+
+	private renameFile(letters: string): void {
+		const itemId = lettersToNumber(letters);
+		if (!itemId) {
+			return;
+		}
+		const uri = id_uri_map.get(itemId);
+		if (uri) {
+			vscode.commands.executeCommand('fileutils.renameFile', vscode.Uri.file(uri));
 		}
 	}
 
