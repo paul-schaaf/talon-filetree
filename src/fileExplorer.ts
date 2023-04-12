@@ -452,25 +452,40 @@ export class FileExplorer {
 		}
 	}
 
-	private moveFile(from: string, to: string): void {
+	private moveFile(from: string, to: string | undefined): void {
 		const fromId = lettersToNumber(from);
-		const toId = lettersToNumber(to);
-		if (!fromId || !toId) {
+		if (!fromId) {
 			return;
 		}
 		const fromUri = id_uri_map.get(fromId);
-		const toUri = id_uri_map.get(toId);
-		if (!fromUri || !toUri) {
+		if (fromUri === undefined) {
 			return;
 		}
 		const fileName = path.basename(fromUri);
-		const isCollapsible = uri_collapsibleState_map.get(toUri)! !== vscode.TreeItemCollapsibleState.None;
-		let newUri;
-		if (isCollapsible) {
-			newUri = path.join(toUri, fileName);
+		if (to === undefined) {
+			// move to workspace root
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fromUri));
+			if (workspaceFolder) {
+				const newUri = path.join(workspaceFolder.uri.fsPath, fileName);
+				fs.renameSync(fromUri, newUri);
+			}
 		} else {
-			newUri = path.join(path.dirname(toUri), fileName);
+			const toId = lettersToNumber(to);
+			if (!toId) {
+				return;
+			}
+			const toUri = id_uri_map.get(toId);
+			if (!toUri) {
+				return;
+			}
+			const isCollapsible = uri_collapsibleState_map.get(toUri)! !== vscode.TreeItemCollapsibleState.None;
+			let newUri;
+			if (isCollapsible) {
+				newUri = path.join(toUri, fileName);
+			} else {
+				newUri = path.join(path.dirname(toUri), fileName);
+			}
+			fs.renameSync(fromUri, newUri);
 		}
-		fs.renameSync(fromUri, newUri);
 	}
 }
