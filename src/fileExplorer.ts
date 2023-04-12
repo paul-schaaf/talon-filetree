@@ -548,11 +548,19 @@ export class FileExplorer {
 			} else {
 				directoryPath = path.dirname(uri);
 			}
-			vscode.window.showInputBox({ prompt: `Creating file in directory ${path.basename(directoryPath)}. Enter file name!` }).then((fileName) => {
+			vscode.window.showInputBox({ prompt: `Creating file in directory ${path.basename(directoryPath)}. Enter file name! End the file name with a slash to create a folder.` }).then((fileName) => {
 				if (fileName) {
-					let filePath = path.join(directoryPath, fileName);
-					fs.writeFileSync(filePath, '');
-					this.openResource(vscode.Uri.file(filePath));
+					if (fileName[fileName.length - 1] !== "/") {
+						let filePath = path.join(directoryPath, fileName);
+						fs.writeFileSync(filePath, '');
+						this.openResource(vscode.Uri.file(filePath));
+					} else {
+						const result = fileName.substring(0, fileName.length - 1);
+						let dirPath = path.join(directoryPath, result);
+						fs.mkdirSync(dirPath);
+						uri_collapsibleState_map.set(dirPath, vscode.TreeItemCollapsibleState.Expanded);
+						this.treeDataProvider._onDidChangeTreeData.fire(undefined);
+					}
 				}
 			})
 		}
