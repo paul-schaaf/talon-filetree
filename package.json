@@ -24,6 +24,10 @@
       {
         "command": "talon-filetree.moveFile",
         "title": "Move File"
+      },
+      {
+        "command": "talon-filetree.openFile",
+        "title": "Open File"
       }
     ],
     "viewsContainers": {

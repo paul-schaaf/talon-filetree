@@ -404,10 +404,11 @@ export class FileExplorer {
 	constructor(context: vscode.ExtensionContext) {
         const provider = new FileSystemProvider()
 		this.treeDataProvider = provider;
-		context.subscriptions.push(vscode.window.createTreeView('tree', { treeDataProvider: provider }));
+		context.subscriptions.push(vscode.window.createTreeView('filetree', { treeDataProvider: provider }));
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
         vscode.commands.registerCommand('talon-filetree.toggleDirectory', (letters) => this.toggleDirectory(letters));
 		vscode.commands.registerCommand('talon-filetree.moveFile', (from, to) => this.moveFile(from, to));
+		vscode.commands.registerCommand('talon-filetree.openFile', (letters) => this.openFile(letters));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -427,6 +428,17 @@ export class FileExplorer {
             this.treeDataProvider._onDidChangeTreeData.fire(undefined);
         }
     }
+	
+	private openFile(letters: string): void {
+		const itemId = lettersToNumber(letters);
+		if (!itemId) {
+			return;
+		}
+		const uri = id_uri_map.get(itemId);
+		if (uri) {
+			this.openResource(vscode.Uri.file(uri));
+		}
+	}
 
 	private moveFile(from: string, to: string): void {
 		const fromId = lettersToNumber(from);
