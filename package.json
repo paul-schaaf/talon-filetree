@@ -32,6 +32,10 @@
       {
         "command": "talon-filetree.renameFile",
         "title": "Rename File"
+      },
+      {
+        "command": "talon-filetree.expandDirectory",
+        "title": "Expand Directory"
       }
     ],
     "viewsContainers": {

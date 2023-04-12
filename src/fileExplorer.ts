@@ -144,6 +144,25 @@ export class FileStat implements vscode.FileStat {
 	}
 }
 
+function getDirectories(dirPath: string, level = 0) {
+	let result: { path: string, level: number}[] = [];
+	try {
+	  const files = fs.readdirSync(dirPath);
+	  for (const file of files) {
+		const filePath = path.join(dirPath, file);
+		const stats = fs.statSync(filePath);
+		if (stats.isDirectory()) {
+		  result.push({ path: filePath, level });
+		  result = result.concat(getDirectories(filePath, level + 1));
+		}
+	  }
+	} catch (error) {
+	  console.error('Error reading directory:', error);
+	}
+  
+	return result;
+}
+
 interface Entry {
 	uri: vscode.Uri;
 	type: vscode.FileType;
@@ -190,7 +209,7 @@ const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const randomNumbers: number[] = [];
 const uri_collapsibleState_map = new Map<string, vscode.TreeItemCollapsibleState>();
 const id_uri_map = new Map<number, string>();
-let justChanged: number | undefined = undefined;
+const uri_id_map = new Map<string, number>();
 
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscode.FileSystemProvider {
 
@@ -219,6 +238,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 			const filepath = path.join(uri.fsPath, _.normalizeNFC(filename.toString()));
 
             id_uri_map.clear();
+			uri_id_map.clear();
 			// TODO support excludes (using minimatch library?)
 
 			this._onDidChangeFile.fire([{
@@ -327,6 +347,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
                 element.counter.value += 1;
                 const uri = vscode.Uri.file(path.join(element.uri.fsPath, name));
                 id_uri_map.set(element.counter.value, uri.path);
+				uri_id_map.set(uri.path, element.counter.value);
                 return ({ uri, type, id: element.counter.value, counter: element.counter });
             });
 		}
@@ -348,6 +369,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
                 counter.value += 1;
                 const uri = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, name));
                 id_uri_map.set(counter.value, uri.path);
+				uri_id_map.set(uri.path, counter.value);
                 return ({ uri, type, id: counter.value, counter });
             });
 		}
@@ -364,24 +386,20 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
             const priorItem = uri_collapsibleState_map.get(element.uri.path);
             if (priorItem) {
                 treeItem = new TreeItem(element.uri, priorItem, element.id, element);
-
-                if (element.id === justChanged) {
-                    let randomNumber;
-                    while (true) {
-                        randomNumber = Math.random();
-                        if (randomNumbers.includes(randomNumber)) {
-                            continue;
-                        }
-                        randomNumbers.push(randomNumber);
-						const index = randomNumbers.indexOf(element.id, 0);
-						if (index > -1) {
-							randomNumbers.splice(index, 1);
-						}
-                        break;
-                    }
-                    treeItem.id = randomNumber.toString();
-                    justChanged = undefined;
-                }
+				let randomNumber;
+				while (true) {
+					randomNumber = Math.random();
+					if (randomNumbers.includes(randomNumber)) {
+						continue;
+					}
+					randomNumbers.push(randomNumber);
+					const index = randomNumbers.indexOf(element.id, 0);
+					if (index > -1) {
+						randomNumbers.splice(index, 1);
+					}
+					break;
+				}
+				treeItem.id = randomNumber.toString();
             }
         }
         uri_collapsibleState_map.set(element.uri.path, treeItem.collapsibleState!);
@@ -414,6 +432,7 @@ export class FileExplorer {
 		vscode.commands.registerCommand('talon-filetree.moveFile', (from, to) => this.moveFile(from, to));
 		vscode.commands.registerCommand('talon-filetree.openFile', (letters) => this.openFile(letters));
 		vscode.commands.registerCommand('talon-filetree.renameFile', (letters) => this.renameFile(letters));
+		vscode.commands.registerCommand('talon-filetree.expandDirectory', (letters, level) => this.expandDirectory(letters, level));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -422,18 +441,39 @@ export class FileExplorer {
 
     private toggleDirectory(letters: string): void {
         const itemId = lettersToNumber(letters);
-		if (!itemId) {
+		if (itemId === undefined) {
 			return;
 		}
         const uri = id_uri_map.get(itemId);
         if (uri) {
             const state = uri_collapsibleState_map.get(uri);
-            justChanged = itemId;
             uri_collapsibleState_map.set(uri, state === vscode.TreeItemCollapsibleState.Collapsed ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed)
             this.treeDataProvider._onDidChangeTreeData.fire(undefined);
         }
     }
-	
+
+	private expandDirectory(letters: string, levelString: string): void {
+		const itemId = lettersToNumber(letters);
+		if (itemId === undefined) {
+			return;
+		}
+        const uri = id_uri_map.get(itemId);
+		const level = parseInt(levelString)
+		if (uri) {
+			if (uri_collapsibleState_map.get(uri) !== vscode.TreeItemCollapsibleState.Expanded) {
+				uri_collapsibleState_map.set(uri, vscode.TreeItemCollapsibleState.Expanded)
+			}
+			for (const directory of getDirectories(uri)) {
+				if (directory.level >= level) {
+					uri_collapsibleState_map.set(directory.path, vscode.TreeItemCollapsibleState.Collapsed)
+				} else if (uri_collapsibleState_map.get(directory.path) !== vscode.TreeItemCollapsibleState.Expanded) {
+					uri_collapsibleState_map.set(directory.path, vscode.TreeItemCollapsibleState.Expanded)
+				}
+			}
+			this.treeDataProvider._onDidChangeTreeData.fire(undefined);
+		}
+	}
+
 	private openFile(letters: string): void {
 		const itemId = lettersToNumber(letters);
 		if (!itemId) {
