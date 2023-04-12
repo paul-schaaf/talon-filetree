@@ -434,6 +434,7 @@ export class FileExplorer {
 		vscode.commands.registerCommand('talon-filetree.renameFile', (letters) => this.renameFile(letters));
 		vscode.commands.registerCommand('talon-filetree.expandDirectory', (letters, level) => this.expandDirectory(letters, level));
 		vscode.commands.registerCommand('talon-filetree.createFile', (letters) => this.createFile(letters));
+		vscode.commands.registerCommand('talon-filetree.deleteFile', (letters) => this.deleteFile(letters));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -564,5 +565,33 @@ export class FileExplorer {
 				}
 			})
 		}
+	}
+
+	private deleteFile(letters: string): void {
+		vscode.window.showInformationMessage(
+			'Are you sure you want to continue?',
+			{ modal: true },
+			'Yes',
+			'No'
+		).then((selection) => {
+			if (selection === 'Yes') {
+				const itemId = lettersToNumber(letters);
+				if (!itemId) {
+					return;
+				}
+				const uri = id_uri_map.get(itemId);
+				if (uri) {
+					const isCollapsible = uri_collapsibleState_map.get(uri)! !== vscode.TreeItemCollapsibleState.None;
+
+					if (isCollapsible) {
+						fs.rmdirSync(uri, { recursive: true });
+					} else {
+						fs.unlinkSync(uri);
+					}
+					uri_collapsibleState_map.delete(uri);
+					this.treeDataProvider._onDidChangeTreeData.fire(undefined);
+				}				
+			}
+		});
 	}
 }

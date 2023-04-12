@@ -40,6 +40,10 @@
       {
         "command": "talon-filetree.createFile",
         "title": "Create File"
+      },
+      {
+        "command": "talon-filetree.deleteFile",
+        "title": "Delete File"
       }
     ],
     "viewsContainers": {
