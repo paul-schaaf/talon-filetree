@@ -36,6 +36,10 @@
       {
         "command": "talon-filetree.expandDirectory",
         "title": "Expand Directory"
+      },
+      {
+        "command": "talon-filetree.createFile",
+        "title": "Create File"
       }
     ],
     "viewsContainers": {

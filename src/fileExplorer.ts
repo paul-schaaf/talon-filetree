@@ -433,6 +433,7 @@ export class FileExplorer {
 		vscode.commands.registerCommand('talon-filetree.openFile', (letters) => this.openFile(letters));
 		vscode.commands.registerCommand('talon-filetree.renameFile', (letters) => this.renameFile(letters));
 		vscode.commands.registerCommand('talon-filetree.expandDirectory', (letters, level) => this.expandDirectory(letters, level));
+		vscode.commands.registerCommand('talon-filetree.createFile', (letters) => this.createFile(letters));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -530,6 +531,30 @@ export class FileExplorer {
 				newUri = path.join(path.dirname(toUri), fileName);
 			}
 			fs.renameSync(fromUri, newUri);
+		}
+	}
+
+	private createFile(letters: string): void {
+		const itemId = lettersToNumber(letters);
+		if (!itemId) {
+			return;
+		}
+		const uri = id_uri_map.get(itemId);
+		if (uri) {
+			const isCollapsible = uri_collapsibleState_map.get(uri)! !== vscode.TreeItemCollapsibleState.None;
+			let directoryPath: string;
+			if (isCollapsible) {
+				directoryPath = uri;
+			} else {
+				directoryPath = path.dirname(uri);
+			}
+			vscode.window.showInputBox({ prompt: `Creating file in directory ${path.basename(directoryPath)}. Enter file name!` }).then((fileName) => {
+				if (fileName) {
+					let filePath = path.join(directoryPath, fileName);
+					fs.writeFileSync(filePath, '');
+					this.openResource(vscode.Uri.file(filePath));
+				}
+			})
 		}
 	}
 }
