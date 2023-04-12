@@ -568,30 +568,31 @@ export class FileExplorer {
 	}
 
 	private deleteFile(letters: string): void {
+		const itemId = lettersToNumber(letters);
+		if (!itemId) {
+			return;
+		}
+		const uri = id_uri_map.get(itemId);
+		if (!uri) {
+			return;
+		}
 		vscode.window.showInformationMessage(
-			'Are you sure you want to continue?',
+			`Are you sure you want to delete ${uri}?`,
 			{ modal: true },
 			'Yes',
 			'No'
 		).then((selection) => {
 			if (selection === 'Yes') {
-				const itemId = lettersToNumber(letters);
-				if (!itemId) {
-					return;
-				}
-				const uri = id_uri_map.get(itemId);
-				if (uri) {
-					const isCollapsible = uri_collapsibleState_map.get(uri)! !== vscode.TreeItemCollapsibleState.None;
+				const isCollapsible = uri_collapsibleState_map.get(uri)! !== vscode.TreeItemCollapsibleState.None;
 
-					if (isCollapsible) {
-						fs.rmdirSync(uri, { recursive: true });
-					} else {
-						fs.unlinkSync(uri);
-					}
-					uri_collapsibleState_map.delete(uri);
-					this.treeDataProvider._onDidChangeTreeData.fire(undefined);
-				}				
-			}
+				if (isCollapsible) {
+					fs.rmdirSync(uri, { recursive: true });
+				} else {
+					fs.unlinkSync(uri);
+				}
+				uri_collapsibleState_map.delete(uri);
+				this.treeDataProvider._onDidChangeTreeData.fire(undefined);
+			}				
 		});
 	}
 }
