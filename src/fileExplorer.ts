@@ -373,6 +373,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
                             continue;
                         }
                         randomNumbers.push(randomNumber);
+						const index = randomNumbers.indexOf(element.id, 0);
+						if (index > -1) {
+							randomNumbers.splice(index, 1);
+						}
                         break;
                     }
                     treeItem.id = randomNumber.toString();
