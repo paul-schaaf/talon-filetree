@@ -44,6 +44,10 @@
       {
         "command": "talon-filetree.deleteFile",
         "title": "Delete File"
+      },
+      {
+        "command": "talon-filetree.collapseRoot",
+        "title": "Collapse Root"
       }
     ],
     "viewsContainers": {

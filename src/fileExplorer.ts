@@ -435,6 +435,7 @@ export class FileExplorer {
 		vscode.commands.registerCommand('talon-filetree.expandDirectory', (letters, level) => this.expandDirectory(letters, level));
 		vscode.commands.registerCommand('talon-filetree.createFile', (letters) => this.createFile(letters));
 		vscode.commands.registerCommand('talon-filetree.deleteFile', (letters) => this.deleteFile(letters));
+		vscode.commands.registerCommand('talon-filetree.collapseRoot', () => this.collapseRoot());
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -474,6 +475,16 @@ export class FileExplorer {
 			}
 			this.treeDataProvider._onDidChangeTreeData.fire(undefined);
 		}
+	}
+
+	private collapseRoot(): void {
+		const workspacePath = vscode.workspace.workspaceFolders![0].uri.path;
+		for (const directory of getDirectories(workspacePath)) {
+			if (directory.level === 0) {
+				uri_collapsibleState_map.set(directory.path, vscode.TreeItemCollapsibleState.Collapsed)
+			}
+		}
+		this.treeDataProvider._onDidChangeTreeData.fire(undefined);
 	}
 
 	private openFile(letters: string): void {
