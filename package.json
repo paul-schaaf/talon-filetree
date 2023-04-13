@@ -48,6 +48,10 @@
       {
         "command": "talon-filetree.collapseRoot",
         "title": "Collapse Root"
+      },
+      {
+        "command": "talon-filetree.select",
+        "title": "Select"
       }
     ],
     "viewsContainers": {

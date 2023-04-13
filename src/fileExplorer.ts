@@ -169,7 +169,8 @@ interface Entry {
     id: number;
     counter: {
         value: number
-    }
+    };
+	parent: Entry | undefined;
 }
 
 //#endregion
@@ -205,11 +206,11 @@ function lettersToNumber(letters: string) {
     return num;
 }
 
-const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const randomNumbers: number[] = [];
 const uri_collapsibleState_map = new Map<string, vscode.TreeItemCollapsibleState>();
 const id_uri_map = new Map<number, string>();
 const uri_id_map = new Map<string, number>();
+const id_entry_map = new Map<number, Entry>(); 
 
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscode.FileSystemProvider {
 
@@ -239,6 +240,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 
             id_uri_map.clear();
 			uri_id_map.clear();
+			id_entry_map.clear();
 			// TODO support excludes (using minimatch library?)
 
 			this._onDidChangeFile.fire([{
@@ -348,7 +350,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
                 const uri = vscode.Uri.file(path.join(element.uri.fsPath, name));
                 id_uri_map.set(element.counter.value, uri.path);
 				uri_id_map.set(uri.path, element.counter.value);
-                return ({ uri, type, id: element.counter.value, counter: element.counter });
+                return ({ uri, type, id: element.counter.value, counter: element.counter, parent: element });
             });
 		}
 
@@ -370,11 +372,15 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
                 const uri = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, name));
                 id_uri_map.set(counter.value, uri.path);
 				uri_id_map.set(uri.path, counter.value);
-                return ({ uri, type, id: counter.value, counter });
+                return ({ uri, type, id: counter.value, counter, parent: undefined });
             });
 		}
 
 		return [];
+	}
+
+	getParent(element: Entry): vscode.ProviderResult<Entry> {
+		return element.parent;
 	}
 
 	getTreeItem(element: Entry): vscode.TreeItem {
@@ -402,6 +408,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 				treeItem.id = randomNumber.toString();
             }
         }
+        id_entry_map.set(element.id, element);
         uri_collapsibleState_map.set(element.uri.path, treeItem.collapsibleState!);
 		return treeItem;
 	}
@@ -423,10 +430,12 @@ class TreeItem extends vscode.TreeItem {
 
 export class FileExplorer {
     private treeDataProvider: FileSystemProvider;
+	private treeView: vscode.TreeView<Entry>;
 	constructor(context: vscode.ExtensionContext) {
         const provider = new FileSystemProvider()
 		this.treeDataProvider = provider;
-		context.subscriptions.push(vscode.window.createTreeView('filetree', { treeDataProvider: provider }));
+		this.treeView = vscode.window.createTreeView('filetree', { treeDataProvider: provider })
+		context.subscriptions.push(this.treeView);
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
         vscode.commands.registerCommand('talon-filetree.toggleDirectory', (letters) => this.toggleDirectory(letters));
 		vscode.commands.registerCommand('talon-filetree.moveFile', (from, to) => this.moveFile(from, to));
@@ -436,6 +445,7 @@ export class FileExplorer {
 		vscode.commands.registerCommand('talon-filetree.createFile', (letters) => this.createFile(letters));
 		vscode.commands.registerCommand('talon-filetree.deleteFile', (letters) => this.deleteFile(letters));
 		vscode.commands.registerCommand('talon-filetree.collapseRoot', () => this.collapseRoot());
+		vscode.commands.registerCommand('talon-filetree.select', (letters) => this.select(letters));
 	}
 
 	private openResource(resource: vscode.Uri): void {
@@ -576,6 +586,15 @@ export class FileExplorer {
 				}
 			})
 		}
+	}
+
+	private select(letters: string): void {
+		const itemId = lettersToNumber(letters);
+		if (!itemId) {
+			return;
+		}
+		const entry = id_entry_map.get(itemId)!;
+		this.treeView.reveal(entry, { focus: true });
 	}
 
 	private deleteFile(letters: string): void {
