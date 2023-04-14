@@ -14,7 +14,6 @@ interface Entry {
 	parent: Entry | undefined;
 }
 
-const randomNumbers: number[] = [];
 
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 
@@ -23,6 +22,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 	private readonly idPathMap = new Map<number, string>();
 	private readonly idEntryMap = new Map<number, Entry>();
 	private readonly pathCollapsibleStateMap = new Map<string, vscode.TreeItemCollapsibleState>();
+	private readonly randomNumbers: number[] = [];
 
 	constructor() {
         const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file')[0];
@@ -151,13 +151,13 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 				let randomNumber;
 				while (true) {
 					randomNumber = Math.random();
-					if (randomNumbers.includes(randomNumber)) {
+					if (this.randomNumbers.includes(randomNumber)) {
 						continue;
 					}
-					randomNumbers.push(randomNumber);
-					const index = randomNumbers.indexOf(element.id, 0);
+					this.randomNumbers.push(randomNumber);
+					const index = this.randomNumbers.indexOf(element.id, 0);
 					if (index > -1) {
-						randomNumbers.splice(index, 1);
+						this.randomNumbers.splice(index, 1);
 					}
 					break;
 				}
