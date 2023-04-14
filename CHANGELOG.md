@@ -1,3 +1,12 @@
+## 0.3.0 [2023-04-14]
+
+- now displaying unexpected errors as error messages
+- remove string interpolation from talon example file
+
+BREAKING:
+
+- createFile will now fail if destination exists already (this is already the case with rename)
+
 ## 0.2.0 [2023-04-14]
 
 - `toggleDirectory` is now `toggleDirectoryOrOpenFile` and will toggle a directory or open a file, depending on the selected node
