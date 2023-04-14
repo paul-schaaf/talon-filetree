@@ -1,58 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as utils from './utilities';
-
-function getDirectories(dirPath: string, level = 0) {
-	let result: { path: string, level: number}[] = [];
-	try {
-	  const files = fs.readdirSync(dirPath);
-	  for (const file of files) {
-		const filePath = path.join(dirPath, file);
-		const stats = fs.statSync(filePath);
-		if (stats.isDirectory()) {
-		  result.push({ path: filePath, level });
-		  result = result.concat(getDirectories(filePath, level + 1));
-		}
-	  }
-	} catch (error) {
-	  console.error('Error reading directory:', error);
-	}
-
-	return result;
-}
-
-function numberToAlphabet(num: number) {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const length = alphabet.length;
-    let result = '';
-
-    while (num > 0) {
-      num--; // Adjust the number to a zero-based index
-      const index = num % length;
-      result = alphabet[index] + result;
-      num = Math.floor(num / length);
-    }
-
-    return result;
-}
-
-function lettersToNumber(letters: string) {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const length = alphabet.length;
-    let num = 0;
-
-    for (let i = 0; i < letters.length; i++) {
-      const index = alphabet.indexOf(letters[i]);
-      if (index === -1) {
-        return undefined;
-      }
-      num = num * length + (index + 1);
-    }
-
-    return num;
-}
-
+import * as utils from './fileUtils';
+import { getDirectories, lettersToNumber, numberToAlphabet } from './utils';
 
 interface Entry {
 	uri: vscode.Uri;
@@ -66,14 +16,13 @@ interface Entry {
 
 const randomNumbers: number[] = [];
 const uriCollapsibleStateMap = new Map<string, vscode.TreeItemCollapsibleState>();
-const idUriMap = new Map<number, string>();
-const uriIdMap = new Map<string, number>();
-const idEntryMap = new Map<number, Entry>();
 
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 
     private readonly _onDidChangeTreeData: vscode.EventEmitter<Entry | undefined> = new vscode.EventEmitter<Entry | undefined>();
 	readonly onDidChangeTreeData: vscode.Event<Entry | undefined> = this._onDidChangeTreeData.event;
+	private readonly idPathMap = new Map<number, string>();
+	private readonly idEntryMap = new Map<number, Entry>();
 
 	constructor() {
         const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file')[0];
@@ -86,12 +35,19 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 		this._onDidChangeTreeData.fire(undefined);
 	}
 
+	getPathFromId(id: number): string | undefined {
+		return this.idPathMap.get(id);
+	}
+
+	getEntryFromId(id: number): Entry | undefined {
+		return this.idEntryMap.get(id);
+	}
+
 	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
 		const watcher = fs.watch(uri.fsPath, { recursive: options.recursive }, async () => {
 
-            idUriMap.clear();
-			uriIdMap.clear();
-			idEntryMap.clear();
+            this.idPathMap.clear();
+			this.idEntryMap.clear();
 
             this.refresh();
 		});
@@ -126,8 +82,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             .map(([name, type]) => {
                 element.counter.value += 1;
                 const uri = vscode.Uri.file(path.join(element.uri.fsPath, name));
-                idUriMap.set(element.counter.value, uri.path);
-				uriIdMap.set(uri.path, element.counter.value);
+                this.idPathMap.set(element.counter.value, uri.path);
                 return ({ uri, type, id: element.counter.value, counter: element.counter, parent: element });
             });
 		}
@@ -148,8 +103,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             .map(([name, type]) => {
                 counter.value += 1;
                 const uri = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, name));
-                idUriMap.set(counter.value, uri.path);
-				uriIdMap.set(uri.path, counter.value);
+                this.idPathMap.set(counter.value, uri.path);
                 return ({ uri, type, id: counter.value, counter, parent: undefined });
             });
 		}
@@ -186,7 +140,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 				treeItem.id = randomNumber.toString();
             }
         }
-        idEntryMap.set(element.id, element);
+        this.idEntryMap.set(element.id, element);
         uriCollapsibleStateMap.set(element.uri.path, treeItem.collapsibleState!);
 		return treeItem;
 	}
@@ -235,7 +189,7 @@ export class FileExplorer {
 		if (itemId === undefined) {
 			return;
 		}
-        const uri = idUriMap.get(itemId);
+        const uri = this.treeDataProvider.getPathFromId(itemId);
         if (uri) {
             const state = uriCollapsibleStateMap.get(uri);
             uriCollapsibleStateMap.set(uri, state === vscode.TreeItemCollapsibleState.Collapsed ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed)
@@ -248,7 +202,7 @@ export class FileExplorer {
 		if (itemId === undefined) {
 			return;
 		}
-        const uri = idUriMap.get(itemId);
+        const uri = this.treeDataProvider.getPathFromId(itemId);
 		const level = parseInt(levelString)
 		if (uri) {
 			if (uriCollapsibleStateMap.get(uri) !== vscode.TreeItemCollapsibleState.Expanded) {
@@ -280,7 +234,7 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = idUriMap.get(itemId);
+		const uri = this.treeDataProvider.getPathFromId(itemId);
 		if (uri) {
 			this.openResource(vscode.Uri.file(uri));
 		}
@@ -291,7 +245,7 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = idUriMap.get(itemId);
+		const uri = this.treeDataProvider.getPathFromId(itemId);
 		if (uri) {
 			vscode.commands.executeCommand('fileutils.renameFile', vscode.Uri.file(uri));
 		}
@@ -302,7 +256,7 @@ export class FileExplorer {
 		if (!fromId) {
 			return;
 		}
-		const fromUri = idUriMap.get(fromId);
+		const fromUri = this.treeDataProvider.getPathFromId(fromId);
 		if (fromUri === undefined) {
 			return;
 		}
@@ -319,7 +273,7 @@ export class FileExplorer {
 			if (!toId) {
 				return;
 			}
-			const toUri = idUriMap.get(toId);
+			const toUri = this.treeDataProvider.getPathFromId(toId);
 			if (!toUri) {
 				return;
 			}
@@ -339,7 +293,7 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = idUriMap.get(itemId);
+		const uri = this.treeDataProvider.getPathFromId(itemId);
 		if (uri) {
 			const isCollapsible = uriCollapsibleStateMap.get(uri)! !== vscode.TreeItemCollapsibleState.None;
 			let directoryPath: string;
@@ -371,7 +325,7 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const entry = idEntryMap.get(itemId)!;
+		const entry = this.treeDataProvider.getEntryFromId(itemId)!;
 		this.treeView.reveal(entry, { focus: true });
 	}
 
@@ -380,7 +334,7 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = idUriMap.get(itemId);
+		const uri = this.treeDataProvider.getPathFromId(itemId);
 		if (!uri) {
 			return;
 		}
