@@ -3,6 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as utils from "./fileUtils";
 import { getDirectories, lettersToNumber, numberToAlphabet } from "./utils";
+const chokidar = require("chokidar");
 
 interface Entry {
     uri: vscode.Uri;
@@ -33,7 +34,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
         if (workspaceFolder) {
-            this.watch(workspaceFolder.uri, { recursive: true, excludes: [] });
+            this.watch(workspaceFolder.uri);
         }
     }
 
@@ -88,20 +89,13 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         );
     }
 
-    watch(
-        uri: vscode.Uri,
-        options: { recursive: boolean; excludes: string[] }
-    ): vscode.Disposable {
-        const watcher = fs.watch(
-            uri.fsPath,
-            { recursive: options.recursive },
-            async () => {
-                this.idPathMap.clear();
-                this.idEntryMap.clear();
+    watch(uri: vscode.Uri): vscode.Disposable {
+        const watcher = chokidar.watch(uri.fsPath).on("all", async () => {
+            this.idPathMap.clear();
+            this.idEntryMap.clear();
 
-                this.refresh();
-            }
-        );
+            this.refresh();
+        });
 
         return { dispose: () => watcher.close() };
     }
