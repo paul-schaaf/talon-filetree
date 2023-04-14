@@ -1,3 +1,13 @@
+## 0.4.0 [2023-04-14]
+
+- `closeParent` command that closes the parent directory of the selected node (useful for when you are scrolling through a large directory like node modules and no longer see the parent directory tag to close it that way)
+
+BREAKING:
+
+- `tree <user.letters> collapse` is now `tree collapse <user.letters>` (this is to make it consistent with the other commands)
+- `tree root collapse` is now `tree collapse root` (this is to make it consistent with the other commands)
+- now using `run_rpc_command` in talon example file
+
 ## 0.3.0 [2023-04-14]
 
 - now displaying unexpected errors as error messages
