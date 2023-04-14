@@ -15,7 +15,6 @@ interface Entry {
 }
 
 const randomNumbers: number[] = [];
-const uriCollapsibleStateMap = new Map<string, vscode.TreeItemCollapsibleState>();
 
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 
@@ -23,6 +22,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 	readonly onDidChangeTreeData: vscode.Event<Entry | undefined> = this._onDidChangeTreeData.event;
 	private readonly idPathMap = new Map<number, string>();
 	private readonly idEntryMap = new Map<number, Entry>();
+	private readonly pathCollapsibleStateMap = new Map<string, vscode.TreeItemCollapsibleState>();
 
 	constructor() {
         const workspaceFolder = (vscode.workspace.workspaceFolders ?? []).filter(folder => folder.uri.scheme === 'file')[0];
@@ -41,6 +41,30 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 
 	getEntryFromId(id: number): Entry | undefined {
 		return this.idEntryMap.get(id);
+	}
+
+	deletePathFromCollapsibleStateMap(path: string): void {
+		this.pathCollapsibleStateMap.delete(path);
+	}
+
+	isPathCollapsible(path: string): boolean {
+		return this.pathCollapsibleStateMap.get(path) !== vscode.TreeItemCollapsibleState.None;
+	}
+
+	isPathExpanded(path: string): boolean {
+		return this.pathCollapsibleStateMap.get(path) === vscode.TreeItemCollapsibleState.Expanded;
+	}
+
+	isPathCollapsed(path: string): boolean {
+		return this.pathCollapsibleStateMap.get(path) === vscode.TreeItemCollapsibleState.Collapsed;
+	}
+
+	expandPath(path: string): void {
+		this.pathCollapsibleStateMap.set(path, vscode.TreeItemCollapsibleState.Expanded);
+	}
+
+	collapsePath(path: string): void {
+		this.pathCollapsibleStateMap.set(path, vscode.TreeItemCollapsibleState.Collapsed);
 	}
 
 	watch(uri: vscode.Uri, options: { recursive: boolean; excludes: string[]; }): vscode.Disposable {
@@ -121,7 +145,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 			treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
 			treeItem.contextValue = 'file';
 		} else {
-            const priorItem = uriCollapsibleStateMap.get(element.uri.path);
+            const priorItem = this.pathCollapsibleStateMap.get(element.uri.path);
             if (priorItem) {
                 treeItem = new TreeItem(element.uri, priorItem, element.id, element);
 				let randomNumber;
@@ -141,7 +165,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             }
         }
         this.idEntryMap.set(element.id, element);
-        uriCollapsibleStateMap.set(element.uri.path, treeItem.collapsibleState!);
+        this.pathCollapsibleStateMap.set(element.uri.path, treeItem.collapsibleState!);
 		return treeItem;
 	}
 }
@@ -189,10 +213,13 @@ export class FileExplorer {
 		if (itemId === undefined) {
 			return;
 		}
-        const uri = this.treeDataProvider.getPathFromId(itemId);
-        if (uri) {
-            const state = uriCollapsibleStateMap.get(uri);
-            uriCollapsibleStateMap.set(uri, state === vscode.TreeItemCollapsibleState.Collapsed ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed)
+        const path = this.treeDataProvider.getPathFromId(itemId);
+        if (path) {
+            if (this.treeDataProvider.isPathCollapsed(path)) {
+				this.treeDataProvider.expandPath(path);
+			} else {
+				this.treeDataProvider.collapsePath(path);
+			}
             this.treeDataProvider.refresh();
         }
     }
@@ -202,17 +229,17 @@ export class FileExplorer {
 		if (itemId === undefined) {
 			return;
 		}
-        const uri = this.treeDataProvider.getPathFromId(itemId);
+        const path = this.treeDataProvider.getPathFromId(itemId);
 		const level = parseInt(levelString)
-		if (uri) {
-			if (uriCollapsibleStateMap.get(uri) !== vscode.TreeItemCollapsibleState.Expanded) {
-				uriCollapsibleStateMap.set(uri, vscode.TreeItemCollapsibleState.Expanded)
+		if (path) {
+			if (!this.treeDataProvider.isPathExpanded(path)) {
+				this.treeDataProvider.expandPath(path);
 			}
-			for (const directory of getDirectories(uri)) {
+			for (const directory of getDirectories(path)) {
 				if (directory.level >= level) {
-					uriCollapsibleStateMap.set(directory.path, vscode.TreeItemCollapsibleState.Collapsed)
-				} else if (uriCollapsibleStateMap.get(directory.path) !== vscode.TreeItemCollapsibleState.Expanded) {
-					uriCollapsibleStateMap.set(directory.path, vscode.TreeItemCollapsibleState.Expanded)
+					this.treeDataProvider.collapsePath(directory.path);
+				} else if (!this.treeDataProvider.isPathExpanded(directory.path)) {
+					this.treeDataProvider.expandPath(directory.path);
 				}
 			}
 			this.treeDataProvider.refresh();
@@ -223,7 +250,7 @@ export class FileExplorer {
 		const workspacePath = vscode.workspace.workspaceFolders![0].uri.path;
 		for (const directory of getDirectories(workspacePath)) {
 			if (directory.level === 0) {
-				uriCollapsibleStateMap.set(directory.path, vscode.TreeItemCollapsibleState.Collapsed)
+				this.treeDataProvider.collapsePath(directory.path);
 			}
 		}
 		this.treeDataProvider.refresh();
@@ -234,9 +261,9 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = this.treeDataProvider.getPathFromId(itemId);
-		if (uri) {
-			this.openResource(vscode.Uri.file(uri));
+		const path = this.treeDataProvider.getPathFromId(itemId);
+		if (path) {
+			this.openResource(vscode.Uri.file(path));
 		}
 	}
 
@@ -245,9 +272,9 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = this.treeDataProvider.getPathFromId(itemId);
-		if (uri) {
-			vscode.commands.executeCommand('fileutils.renameFile', vscode.Uri.file(uri));
+		const path = this.treeDataProvider.getPathFromId(itemId);
+		if (path) {
+			vscode.commands.executeCommand('fileutils.renameFile', vscode.Uri.file(path));
 		}
 	}
 
@@ -256,35 +283,35 @@ export class FileExplorer {
 		if (!fromId) {
 			return;
 		}
-		const fromUri = this.treeDataProvider.getPathFromId(fromId);
-		if (fromUri === undefined) {
+		const fromPath = this.treeDataProvider.getPathFromId(fromId);
+		if (fromPath === undefined) {
 			return;
 		}
-		const fileName = path.basename(fromUri);
+		const fileName = path.basename(fromPath);
 		if (to === undefined) {
 			// move to workspace root
-			const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fromUri));
+			const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fromPath));
 			if (workspaceFolder) {
-				const newUri = path.join(workspaceFolder.uri.fsPath, fileName);
-				fs.renameSync(fromUri, newUri);
+				const newPath = path.join(workspaceFolder.uri.fsPath, fileName);
+				fs.renameSync(fromPath, newPath);
 			}
 		} else {
 			const toId = lettersToNumber(to);
 			if (!toId) {
 				return;
 			}
-			const toUri = this.treeDataProvider.getPathFromId(toId);
-			if (!toUri) {
+			const toPath = this.treeDataProvider.getPathFromId(toId);
+			if (!toPath) {
 				return;
 			}
-			const isCollapsible = uriCollapsibleStateMap.get(toUri)! !== vscode.TreeItemCollapsibleState.None;
-			let newUri;
+			const isCollapsible = this.treeDataProvider.isPathCollapsible(toPath);
+			let newPath;
 			if (isCollapsible) {
-				newUri = path.join(toUri, fileName);
+				newPath = path.join(toPath, fileName);
 			} else {
-				newUri = path.join(path.dirname(toUri), fileName);
+				newPath = path.join(path.dirname(toPath), fileName);
 			}
-			fs.renameSync(fromUri, newUri);
+			fs.renameSync(fromPath, newPath);
 		}
 	}
 
@@ -293,14 +320,14 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = this.treeDataProvider.getPathFromId(itemId);
-		if (uri) {
-			const isCollapsible = uriCollapsibleStateMap.get(uri)! !== vscode.TreeItemCollapsibleState.None;
+		const itemPath = this.treeDataProvider.getPathFromId(itemId);
+		if (itemPath) {
+			const isCollapsible = this.treeDataProvider.isPathCollapsible(itemPath);
 			let directoryPath: string;
 			if (isCollapsible) {
-				directoryPath = uri;
+				directoryPath = itemPath;
 			} else {
-				directoryPath = path.dirname(uri);
+				directoryPath = path.dirname(itemPath);
 			}
 			vscode.window.showInputBox({ prompt: `Creating file in directory ${path.basename(directoryPath)}. Enter file name! End the file name with a slash to create a folder.` }).then((fileName) => {
 				if (fileName) {
@@ -312,7 +339,7 @@ export class FileExplorer {
 						const result = fileName.substring(0, fileName.length - 1);
 						let dirPath = path.join(directoryPath, result);
 						fs.mkdirSync(dirPath);
-						uriCollapsibleStateMap.set(dirPath, vscode.TreeItemCollapsibleState.Expanded);
+						this.treeDataProvider.expandPath(dirPath);
 						this.treeDataProvider.refresh();
 					}
 				}
@@ -334,25 +361,25 @@ export class FileExplorer {
 		if (!itemId) {
 			return;
 		}
-		const uri = this.treeDataProvider.getPathFromId(itemId);
-		if (!uri) {
+		const path = this.treeDataProvider.getPathFromId(itemId);
+		if (!path) {
 			return;
 		}
 		vscode.window.showInformationMessage(
-			`Are you sure you want to delete ${uri}?`,
+			`Are you sure you want to delete ${path}?`,
 			{ modal: true },
 			'Yes',
 			'No'
 		).then((selection) => {
 			if (selection === 'Yes') {
-				const isCollapsible = uriCollapsibleStateMap.get(uri)! !== vscode.TreeItemCollapsibleState.None;
+				const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
 
 				if (isCollapsible) {
-					fs.rmdirSync(uri, { recursive: true });
+					fs.rmdirSync(path, { recursive: true });
 				} else {
-					fs.unlinkSync(uri);
+					fs.unlinkSync(path);
 				}
-				uriCollapsibleStateMap.delete(uri);
+				this.treeDataProvider.deletePathFromCollapsibleStateMap(path)
 				this.treeDataProvider.refresh();
 			}
 		});
