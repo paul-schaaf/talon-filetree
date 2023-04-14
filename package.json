@@ -2,8 +2,12 @@
   "name": "talon-filetree",
   "displayName": "talon-filetree",
   "publisher": "PaulSchaaf", 
-  "description": "",
-  "version": "0.0.1",
+  "description": "An extension for navigating and manipulating the file tree quickly by voice",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paul-schaaf/talon-filetree"
+},
   "engines": {
     "vscode": "^1.77.0"
   },
@@ -14,10 +18,6 @@
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "talon-filetree.helloWorld",
-        "title": "Hello World"
-      },
       {
         "command": "talon-filetree.toggleDirectory",
         "title": "Toggle Directory"
