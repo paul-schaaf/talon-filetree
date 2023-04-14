@@ -1,6 +1,6 @@
 # talon-filetree
 
-An extension for navigating and manipulating the file tree quickly by voice.
+A [vscode extension](https://marketplace.visualstudio.com/items?itemName=PaulSchaaf.talon-filetree) for navigating and manipulating the file tree quickly by voice.
 Creates a new file tree view that can be used with voice commands.
 
 ## Requirements
