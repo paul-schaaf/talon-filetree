@@ -1,6 +1,7 @@
 {
   "name": "talon-filetree",
   "displayName": "talon-filetree",
+  "publisher": "PaulSchaaf", 
   "description": "",
   "version": "0.0.1",
   "engines": {
