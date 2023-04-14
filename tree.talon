@@ -1,3 +1,7 @@
+# This opens the file tree in the sidebar
+bar tree: user.vscode("workbench.view.extension.filetree")
+
+# File tree commands
 tree <user.letters>:
     user.vscode("talon-filetree.toggleDirectory", "{letters}")
 tree <user.letters> <number>:
