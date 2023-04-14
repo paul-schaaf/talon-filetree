@@ -262,8 +262,8 @@ export class FileExplorer {
             this.openResource(resource)
         );
         vscode.commands.registerCommand(
-            "talon-filetree.toggleDirectory",
-            (letters) => this.toggleDirectory(letters)
+            "talon-filetree.toggleDirectoryOrOpenFile",
+            (letters) => this.toggleDirectoryOrOpenFile(letters)
         );
         vscode.commands.registerCommand("talon-filetree.moveFile", (from, to) =>
             this.moveFile(from, to)
@@ -299,19 +299,24 @@ export class FileExplorer {
         vscode.window.showTextDocument(resource);
     }
 
-    private toggleDirectory(letters: string): void {
+    private toggleDirectoryOrOpenFile(letters: string): void {
         const itemId = lettersToNumber(letters);
         if (itemId === undefined) {
             return;
         }
         const path = this.treeDataProvider.getPathFromId(itemId);
         if (path) {
-            if (this.treeDataProvider.isPathCollapsed(path)) {
-                this.treeDataProvider.expandPath(path);
+            const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
+            if (isCollapsible) {
+                if (this.treeDataProvider.isPathCollapsed(path)) {
+                    this.treeDataProvider.expandPath(path);
+                } else {
+                    this.treeDataProvider.collapsePath(path);
+                }
+                this.treeDataProvider.refresh();
             } else {
-                this.treeDataProvider.collapsePath(path);
+                this.openResource(vscode.Uri.file(path));
             }
-            this.treeDataProvider.refresh();
         }
     }
 
@@ -320,23 +325,27 @@ export class FileExplorer {
         if (itemId === undefined) {
             return;
         }
-        const path = this.treeDataProvider.getPathFromId(itemId);
+        const path = this.treeDataProvider.getPathFromId(itemId)!;
         const level = parseInt(levelString);
-        if (path) {
-            if (!this.treeDataProvider.isPathExpanded(path)) {
-                this.treeDataProvider.expandPath(path);
-            }
-            for (const directory of getDirectories(path)) {
-                if (directory.level >= level) {
-                    this.treeDataProvider.collapsePath(directory.path);
-                } else if (
-                    !this.treeDataProvider.isPathExpanded(directory.path)
-                ) {
-                    this.treeDataProvider.expandPath(directory.path);
-                }
-            }
-            this.treeDataProvider.refresh();
+        const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
+        if (!isCollapsible) {
+            vscode.window.showErrorMessage(
+                "This commands expects a directory but you picked a file!"
+            );
+            return;
         }
+
+        if (!this.treeDataProvider.isPathExpanded(path)) {
+            this.treeDataProvider.expandPath(path);
+        }
+        for (const directory of getDirectories(path)) {
+            if (directory.level >= level) {
+                this.treeDataProvider.collapsePath(directory.path);
+            } else if (!this.treeDataProvider.isPathExpanded(directory.path)) {
+                this.treeDataProvider.expandPath(directory.path);
+            }
+        }
+        this.treeDataProvider.refresh();
     }
 
     private collapseRoot(): void {
@@ -356,6 +365,13 @@ export class FileExplorer {
         }
         const path = this.treeDataProvider.getPathFromId(itemId);
         if (path) {
+            const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
+            if (isCollapsible) {
+                vscode.window.showErrorMessage(
+                    "This commands expects a file but you picked a directory!"
+                );
+                return;
+            }
             this.openResource(vscode.Uri.file(path));
         }
     }
