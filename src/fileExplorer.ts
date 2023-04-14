@@ -470,6 +470,12 @@ export class FileExplorer {
                     if (fileName) {
                         if (fileName[fileName.length - 1] !== "/") {
                             let filePath = path.join(directoryPath, fileName);
+                            if (fs.existsSync(filePath)) {
+                                vscode.window.showErrorMessage(
+                                    "File already exists!"
+                                );
+                                return;
+                            }
                             fs.writeFileSync(filePath, "");
                             this.openResource(vscode.Uri.file(filePath));
                         } else {
