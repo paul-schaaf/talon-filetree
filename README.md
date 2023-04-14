@@ -6,7 +6,7 @@ Creates a new file tree view that can be used with voice commands.
 ## Requirements
 
 -   a voice engine. I use [talon](https://talonvoice.com/).
--   the [example talon file](./tree.talon) relies on a talon vscode command client whose `vscode` function can handle multiple arguments. I use [this one](https://github.com/AndreasArvidsson/talon-vscode-command-client).
+-   a talon vscode command client (included by default in knausj).
 -   the example talon file requires the `user.letters` and `number` captures (included by default in knausj).
 
 ## Features
