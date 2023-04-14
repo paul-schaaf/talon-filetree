@@ -259,40 +259,55 @@ export class FileExplorer {
         });
         context.subscriptions.push(this.treeView);
         vscode.commands.registerCommand("fileExplorer.openFile", (resource) =>
-            this.openResource(resource)
+            this.showMessageIfError(() => this.openResource(resource))
         );
         vscode.commands.registerCommand(
             "talon-filetree.toggleDirectoryOrOpenFile",
-            (letters) => this.toggleDirectoryOrOpenFile(letters)
+            (letters) =>
+                this.showMessageIfError(() =>
+                    this.toggleDirectoryOrOpenFile(letters)
+                )
         );
         vscode.commands.registerCommand("talon-filetree.moveFile", (from, to) =>
-            this.moveFile(from, to)
+            this.showMessageIfError(() => this.moveFile(from, to))
         );
         vscode.commands.registerCommand("talon-filetree.openFile", (letters) =>
-            this.openFile(letters)
+            this.showMessageIfError(() => this.openFile(letters))
         );
         vscode.commands.registerCommand(
             "talon-filetree.renameFile",
-            (letters) => this.renameFile(letters)
+            (letters) => this.showMessageIfError(() => this.renameFile(letters))
         );
         vscode.commands.registerCommand(
             "talon-filetree.expandDirectory",
-            (letters, level) => this.expandDirectory(letters, level)
+            (letters, level) =>
+                this.showMessageIfError(() =>
+                    this.expandDirectory(letters, level)
+                )
         );
         vscode.commands.registerCommand(
             "talon-filetree.createFile",
-            (letters) => this.createFile(letters)
+            (letters) => this.showMessageIfError(() => this.createFile(letters))
         );
         vscode.commands.registerCommand(
             "talon-filetree.deleteFile",
-            (letters) => this.deleteFile(letters)
+            (letters) => this.showMessageIfError(() => this.deleteFile(letters))
         );
         vscode.commands.registerCommand("talon-filetree.collapseRoot", () =>
-            this.collapseRoot()
+            this.showMessageIfError(() => this.collapseRoot())
         );
         vscode.commands.registerCommand("talon-filetree.select", (letters) =>
-            this.select(letters)
+            this.showMessageIfError(() => this.select(letters))
         );
+    }
+
+    private showMessageIfError(f: any): void {
+        try {
+            f();
+        } catch (e: any) {
+            vscode.window.showErrorMessage(e.message);
+            throw e;
+        }
     }
 
     private openResource(resource: vscode.Uri): void {
