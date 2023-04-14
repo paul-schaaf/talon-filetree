@@ -299,6 +299,13 @@ export class FileExplorer {
         vscode.commands.registerCommand("talon-filetree.select", (letters) =>
             this.showMessageIfError(() => this.select(letters))
         );
+        vscode.commands.registerCommand(
+            "talon-filetree.closeParent",
+            (letters) =>
+                this.showMessageIfError(() =>
+                    this.closeParentDirectory(letters)
+                )
+        );
     }
 
     private showMessageIfError(f: any): void {
@@ -333,6 +340,24 @@ export class FileExplorer {
                 this.openResource(vscode.Uri.file(path));
             }
         }
+    }
+
+    private closeParentDirectory(letters: string): void {
+        const itemId = lettersToNumber(letters);
+        if (itemId === undefined) {
+            return;
+        }
+        const parentEntry =
+            this.treeDataProvider.getEntryFromId(itemId)!.parent;
+        if (parentEntry === undefined) {
+            vscode.window.showErrorMessage(
+                "Cannot close parent of workspace directory!"
+            );
+            return;
+        }
+        const parentPath = this.treeDataProvider.getPathFromId(parentEntry.id)!;
+        this.treeDataProvider.collapsePath(parentPath);
+        this.treeDataProvider.refresh();
     }
 
     private expandDirectory(letters: string, levelString: string): void {
