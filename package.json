@@ -3,7 +3,7 @@
     "displayName": "talon-filetree",
     "publisher": "PaulSchaaf",
     "description": "An extension for navigating and manipulating the file tree quickly by voice",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "repository": {
         "type": "git",
         "url": "https://github.com/paul-schaaf/talon-filetree"
@@ -83,7 +83,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "npm install && npm run compile && npm prune --production",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",

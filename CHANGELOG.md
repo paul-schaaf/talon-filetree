@@ -1,3 +1,7 @@
+## 0.5.3 [2023-04-15]
+
+- revert bundling changes made in 0.5.2
+
 ## 0.5.2 [2023-04-15]
 
 - deleting files now puts them in the trash so they can be recovered
