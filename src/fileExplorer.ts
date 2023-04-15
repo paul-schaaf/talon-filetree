@@ -316,15 +316,25 @@ class TreeItem extends vscode.TreeItem {
 export class FileExplorer {
     private treeDataProvider: FileSystemProvider;
     private treeView: vscode.TreeView<Entry>;
-    private trash:
-        | typeof import("/Users/paul/Coding/talon-filetree/node_modules/trash/index")
-        | undefined;
+
     constructor(context: vscode.ExtensionContext) {
         const provider = new FileSystemProvider();
         this.treeDataProvider = provider;
         this.treeView = vscode.window.createTreeView("filetree", {
             treeDataProvider: provider
         });
+        // these two subscriptions make sure
+        // that the extension's collasible state
+        // map is kept up to date when user uses
+        // mouse clicks to expand/collapse
+        // instead of the extension's provided commands
+        this.treeView.onDidExpandElement((event) => {
+            this.treeDataProvider.expandPath(event.element.uri.path);
+        });
+        this.treeView.onDidCollapseElement((event) => {
+            this.treeDataProvider.collapsePath(event.element.uri.path);
+        });
+
         context.subscriptions.push(this.treeView);
         vscode.commands.registerCommand("fileExplorer.openFile", (resource) =>
             this.showMessageIfError(() => this.openResource(resource))

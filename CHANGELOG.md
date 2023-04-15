@@ -1,3 +1,7 @@
+## 0.5.4 [2023-04-16]
+
+- fix bug where expansions/collapses would have to be called twice to work if user previously used clicks to expand/collapse
+
 ## 0.5.3 [2023-04-15]
 
 - revert bundling changes made in 0.5.2
