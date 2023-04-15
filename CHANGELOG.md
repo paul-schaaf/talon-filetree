@@ -1,3 +1,7 @@
+## 0.5.1 [2023-04-15]
+
+- nodes are now always shown in the following order: directories alphabetically sorted, files alphabetically sorted
+
 ## 0.5.0 [2023-04-15]
 
 - `tree git` command that shows/hides gitignored files. They are hidden by default.
