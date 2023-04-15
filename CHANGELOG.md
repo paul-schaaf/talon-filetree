@@ -1,3 +1,11 @@
+## 0.5.0 [2023-04-15]
+
+- `tree git` command that shows/hides gitignored files. They are hidden by default.
+
+BREAKING:
+
+- remove anchors around `tree delete` in example talon file (they prevent using the `cancel` command)
+
 ## 0.4.0 [2023-04-14]
 
 - `closeParent` command that closes the parent directory of the selected node (useful for when you are scrolling through a large directory like node modules and no longer see the parent directory tag to close it that way)

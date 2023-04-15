@@ -26,4 +26,4 @@ Creates a new file tree view that can be used with voice commands.
 
 ## Known Issues
 
--   None Currently
+-   if you manually expand and collapse directories (i.e. by clicking instead of using the provided commands), the extension will currently still think that the directory is in the old expanded/collapsed state. Thus, next time you want to expand/collapse the directory, you will have to do it twice.

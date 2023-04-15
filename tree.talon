@@ -23,9 +23,11 @@ tree rename <user.letters>:
     user.run_rpc_command("talon-filetree.renameFile", letters)
 tree create <user.letters>:
     user.run_rpc_command("talon-filetree.createFile", letters)
-^tree delete <user.letters>$:
+tree delete <user.letters>:
     user.run_rpc_command("talon-filetree.deleteFile", letters)
 tree collapse root:
     user.run_rpc_command("talon-filetree.collapseRoot")
 tree select <user.letters>:
     user.run_rpc_command("talon-filetree.select", letters)
+tree git:
+    user.run_rpc_command("talon-filetree.toggleGitIgnoredFiles")

@@ -3,7 +3,7 @@
     "displayName": "talon-filetree",
     "publisher": "PaulSchaaf",
     "description": "An extension for navigating and manipulating the file tree quickly by voice",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "repository": {
         "type": "git",
         "url": "https://github.com/paul-schaaf/talon-filetree"
@@ -21,6 +21,10 @@
             {
                 "command": "talon-filetree.toggleDirectoryOrOpenFile",
                 "title": "Toggle Directory Or Open File"
+            },
+            {
+                "command": "talon-filetree.toggleGitIgnoredFiles",
+                "title": "Toggle Git Ignored Files"
             },
             {
                 "command": "talon-filetree.closeParent",
@@ -105,6 +109,7 @@
         "sleistner.vscode-fileutils"
     ],
     "dependencies": {
-        "chokidar": "^3.5.3"
+        "chokidar": "^3.5.3",
+        "simple-git": "^3.17.0"
     }
 }
