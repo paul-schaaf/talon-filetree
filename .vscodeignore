@@ -10,4 +10,3 @@ vsc-extension-quickstart.md
 **/*.ts
 **/*.map
 node_modules
-.prettierignore
