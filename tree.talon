@@ -31,3 +31,5 @@ tree select <user.letters>:
     user.run_rpc_command("talon-filetree.select", letters)
 tree git:
     user.run_rpc_command("talon-filetree.toggleGitIgnoredFiles")
+tree current:
+    user.run_rpc_command("talon-filetree.revealCurrentFile")

@@ -24,6 +24,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
     readonly onDidChangeTreeData: vscode.Event<Entry | undefined> =
         this._onDidChangeTreeData.event;
     private readonly idPathMap = new Map<number, string>();
+    private readonly pathIdMap = new Map<string, number>();
     private readonly idEntryMap = new Map<number, Entry>();
     private readonly pathCollapsibleStateMap = new Map<
         string,
@@ -43,6 +44,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
 
     refresh(): void {
         this._onDidChangeTreeData.fire(undefined);
+    }
+
+    getIdFromPath(path: string): number | undefined {
+        return this.pathIdMap.get(path);
     }
 
     getPathFromId(id: number): string | undefined {
@@ -110,6 +115,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
     watch(uri: vscode.Uri): vscode.Disposable {
         const watcher = chokidar.watch(uri.fsPath).on("all", async () => {
             this.idPathMap.clear();
+            this.pathIdMap.clear();
             this.idEntryMap.clear();
 
             this.refresh();
@@ -180,6 +186,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                         path.join(element.uri.fsPath, name)
                     );
                     this.idPathMap.set(element.counter.value, uri.path);
+                    this.pathIdMap.set(uri.path, element.counter.value);
                     return {
                         uri,
                         type,
@@ -232,6 +239,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                         path.join(workspaceFolder.uri.fsPath, name)
                     );
                     this.idPathMap.set(counter.value, uri.path);
+                    this.pathIdMap.set(uri.path, counter.value);
                     return {
                         uri,
                         type,
@@ -388,6 +396,10 @@ export class FileExplorer {
             "talon-filetree.toggleGitIgnoredFiles",
             () => this.showMessageIfError(() => this.toggleGitIgnoredFiles())
         );
+        vscode.commands.registerCommand(
+            "talon-filetree.revealCurrentFile",
+            () => this.showMessageIfError(() => this.revealCurrentFile())
+        );
     }
 
     private showMessageIfError(f: any): void {
@@ -403,10 +415,38 @@ export class FileExplorer {
         vscode.window.showTextDocument(resource);
     }
 
-    private toggleGitIgnoredFiles(): void {
+    private revealCurrentFile(): void {
+        const editor = vscode.window.activeTextEditor;
+        if (editor === undefined) {
+            return;
+        }
         const workspaceFolder = (
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
+        if (!editor.document.uri.path.startsWith(workspaceFolder.uri.path)) {
+            vscode.window.showErrorMessage(
+                "Currently selected file is not a member of active workspace!"
+            );
+            return;
+        }
+
+        const directoriesToExpand = [];
+        let currentPath = path.dirname(editor.document.uri.path);
+        while (true) {
+            if (currentPath === workspaceFolder.uri.path) {
+                break;
+            }
+            directoriesToExpand.push(currentPath);
+            currentPath = path.dirname(currentPath);
+        }
+        directoriesToExpand.reverse();
+        for (const directory of directoriesToExpand) {
+            this.treeDataProvider.expandPath(directory);
+            this.treeDataProvider.refresh();
+        }
+    }
+
+    private toggleGitIgnoredFiles(): void {
         this.treeDataProvider.toggleGitIgnoredFiles();
         this.treeDataProvider.refresh();
     }

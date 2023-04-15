@@ -1,3 +1,7 @@
+## 0.5.5 [2023-04-16]
+
+- `tree current` command that expands the tree to show the current file.
+
 ## 0.5.4 [2023-04-16]
 
 - fix bug where expansions/collapses would have to be called twice to work if user previously used clicks to expand/collapse
