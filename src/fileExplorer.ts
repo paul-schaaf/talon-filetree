@@ -5,6 +5,7 @@ import * as utils from "./fileUtils";
 import { getDirectories, lettersToNumber, numberToAlphabet } from "./utils";
 const chokidar = require("chokidar");
 import { simpleGit } from "simple-git";
+const trash = require("fix-esm").require("trash");
 
 interface Entry {
     uri: vscode.Uri;
@@ -230,7 +231,6 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                     const uri = vscode.Uri.file(
                         path.join(workspaceFolder.uri.fsPath, name)
                     );
-                    console.log(uri.path);
                     this.idPathMap.set(counter.value, uri.path);
                     return {
                         uri,
@@ -316,6 +316,9 @@ class TreeItem extends vscode.TreeItem {
 export class FileExplorer {
     private treeDataProvider: FileSystemProvider;
     private treeView: vscode.TreeView<Entry>;
+    private trash:
+        | typeof import("/Users/paul/Coding/talon-filetree/node_modules/trash/index")
+        | undefined;
     constructor(context: vscode.ExtensionContext) {
         const provider = new FileSystemProvider();
         this.treeDataProvider = provider;
@@ -604,7 +607,7 @@ export class FileExplorer {
         this.treeView.reveal(entry, { focus: true });
     }
 
-    private deleteFile(letters: string): void {
+    private async deleteFile(letters: string): Promise<void> {
         const itemId = lettersToNumber(letters);
         if (!itemId) {
             return;
@@ -613,28 +616,17 @@ export class FileExplorer {
         if (!path) {
             return;
         }
-        vscode.window
-            .showInformationMessage(
-                `Are you sure you want to delete ${path}?`,
-                { modal: true },
-                "Yes",
-                "No"
-            )
-            .then((selection) => {
-                if (selection === "Yes") {
-                    const isCollapsible =
-                        this.treeDataProvider.isPathCollapsible(path);
+        const selection = await vscode.window.showInformationMessage(
+            `Are you sure you want to delete ${path}?`,
+            { modal: true },
+            "Yes",
+            "No"
+        );
+        if (selection === "Yes") {
+            await trash.default(path);
 
-                    if (isCollapsible) {
-                        fs.rmdirSync(path, { recursive: true });
-                    } else {
-                        fs.unlinkSync(path);
-                    }
-                    this.treeDataProvider.deletePathFromCollapsibleStateMap(
-                        path
-                    );
-                    this.treeDataProvider.refresh();
-                }
-            });
+            this.treeDataProvider.deletePathFromCollapsibleStateMap(path);
+            this.treeDataProvider.refresh();
+        }
     }
 }

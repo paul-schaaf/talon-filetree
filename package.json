@@ -3,7 +3,7 @@
     "displayName": "talon-filetree",
     "publisher": "PaulSchaaf",
     "description": "An extension for navigating and manipulating the file tree quickly by voice",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "repository": {
         "type": "git",
         "url": "https://github.com/paul-schaaf/talon-filetree"
@@ -110,6 +110,8 @@
     ],
     "dependencies": {
         "chokidar": "^3.5.3",
-        "simple-git": "^3.17.0"
+        "fix-esm": "^1.0.1",
+        "simple-git": "^3.17.0",
+        "trash": "^8.1.1"
     }
 }
