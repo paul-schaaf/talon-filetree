@@ -1,3 +1,7 @@
+## 0.5.9 [2023-04-16]
+
+- letters can now be displayed as emojis, lowercase, or uppercase
+
 ## 0.5.8 [2023-04-16]
 
 - letters are now displayed as emojis. This can be turned off in the settings.

@@ -19,21 +19,29 @@ export function getDirectories(dirPath: string, level = 0) {
 
     return result;
 }
-export function numberToAlphabet(num: number, useEmoji: boolean) {
+
+export type LetterStyling = "emoji" | "lowercase" | "uppercase";
+export function numberToAlphabet(num: number, letterStyling: LetterStyling) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     const length = alphabet.length;
-    let result = "";
+    let results: string[] = [];
 
     while (num > 0) {
         num--; // Adjust the number to a zero-based index
         const index = num % length;
-        result =
-            (useEmoji ? letterToEmoji(alphabet[index]) : alphabet[index]) +
-            result;
+        if (letterStyling === "emoji") {
+            results.push(letterToEmoji(alphabet[index]));
+        } else if (letterStyling === "lowercase") {
+            results.push(alphabet[index]);
+        } else {
+            results.push(alphabet[index].toUpperCase());
+        }
+        
         num = Math.floor(num / length);
     }
 
-    return result;
+    results.reverse();
+    return results.join("");
 }
 export function lettersToNumber(letters: string) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
@@ -53,34 +61,6 @@ export function lettersToNumber(letters: string) {
 
 function letterToEmoji(letter: string) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    // const emojis = [
-    //     "🅐",
-    //     "🅑",
-    //     "🅒",
-    //     "🅓",
-    //     "🅔",
-    //     "🅕",
-    //     "🅖",
-    //     "🅗",
-    //     "🅘",
-    //     "🅙",
-    //     "🅚",
-    //     "🅛",
-    //     "🅜",
-    //     "🅝",
-    //     "🅞",
-    //     "🅟",
-    //     "🅠",
-    //     "🅡",
-    //     "🅢",
-    //     "🅣",
-    //     "🅤",
-    //     "🅥",
-    //     "🅦",
-    //     "🅧",
-    //     "🅨",
-    //     "🅩"
-    // ];
     const emojis = [
         "Ⓐ",
         "Ⓑ",

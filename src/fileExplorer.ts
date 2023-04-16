@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as utils from "./fileUtils";
-import { getDirectories, lettersToNumber, numberToAlphabet } from "./utils";
+import { LetterStyling, getDirectories, lettersToNumber, numberToAlphabet } from "./utils";
 const chokidar = require("chokidar");
 import { simpleGit } from "simple-git";
 const trash = require("fix-esm").require("trash");
@@ -265,7 +265,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                 : vscode.TreeItemCollapsibleState.None,
             element.id,
             element,
-            this.config.get("useEmojis")!
+            this.config.get("letterStyling")!
         );
         if (element.type === vscode.FileType.File) {
             treeItem.command = {
@@ -284,7 +284,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                     priorItem,
                     element.id,
                     element,
-                    this.config.get("useEmojis")!
+                    this.config.get("letterStyling")!
                 );
                 let randomNumber;
                 while (true) {
@@ -317,10 +317,10 @@ class TreeItem extends vscode.TreeItem {
         collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly customId: number,
         public readonly entry: Entry,
-        readonly useEmoji: boolean
+        readonly letterStyling: LetterStyling
     ) {
         super(resourceUri, collapsibleState);
-        this.description = numberToAlphabet(customId, useEmoji);
+        this.description = numberToAlphabet(customId, letterStyling);
     }
 }
 

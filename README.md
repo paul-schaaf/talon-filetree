@@ -22,7 +22,7 @@ Creates a new file tree view that can be used with voice commands.
 
 ## Settings
 
-- letters are displayed as emojis to differentiate them from file names. This can be turned off in the settings.
+- letters are displayed as emojis to differentiate them from file names. This can be changed in the settings.
 
 ## Talon Setup
 
