@@ -32,8 +32,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
     >();
     private readonly randomNumbers: number[] = [];
     private isGitIgnoredFilesVisible = false;
+    private config: vscode.WorkspaceConfiguration;
 
-    constructor() {
+    constructor(config: vscode.WorkspaceConfiguration) {
+        this.config = config;
         const workspaceFolder = (
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
@@ -42,7 +44,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         }
     }
 
-    refresh(): void {
+    refresh(config?: vscode.WorkspaceConfiguration): void {
+        if (config !== undefined) {
+            this.config = config;
+        }
         this._onDidChangeTreeData.fire(undefined);
     }
 
@@ -259,7 +264,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                 ? vscode.TreeItemCollapsibleState.Collapsed
                 : vscode.TreeItemCollapsibleState.None,
             element.id,
-            element
+            element,
+            this.config.get("useEmojis")!
         );
         if (element.type === vscode.FileType.File) {
             treeItem.command = {
@@ -277,7 +283,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                     element.uri,
                     priorItem,
                     element.id,
-                    element
+                    element,
+                    this.config.get("useEmojis")!
                 );
                 let randomNumber;
                 while (true) {
@@ -309,10 +316,11 @@ class TreeItem extends vscode.TreeItem {
         resourceUri: vscode.Uri,
         collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly customId: number,
-        public readonly entry: Entry
+        public readonly entry: Entry,
+        readonly useEmoji: boolean
     ) {
         super(resourceUri, collapsibleState);
-        this.description = numberToAlphabet(customId);
+        this.description = numberToAlphabet(customId, useEmoji);
     }
 }
 
@@ -321,11 +329,21 @@ export class FileExplorer {
     private treeView: vscode.TreeView<Entry>;
 
     constructor(context: vscode.ExtensionContext) {
-        const provider = new FileSystemProvider();
+        const provider = new FileSystemProvider(
+            vscode.workspace.getConfiguration("talon-filetree")
+        );
         this.treeDataProvider = provider;
         this.treeView = vscode.window.createTreeView("filetree", {
             treeDataProvider: provider
         });
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(() => {
+                this.treeDataProvider.refresh(
+                    vscode.workspace.getConfiguration("talon-filetree")
+                );
+            }, this)
+        );
+
         // these two subscriptions make sure
         // that the extension's collasible state
         // map is kept up to date when user uses
@@ -447,6 +465,8 @@ export class FileExplorer {
     }
 
     private toggleDirectoryOrOpenFile(letters: string): void {
+        // @ts-expect-error
+        console.log(this.treeDataProvider.pathIdMap);
         const itemId = lettersToNumber(letters);
         if (itemId === undefined) {
             return;

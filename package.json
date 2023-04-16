@@ -3,7 +3,7 @@
     "displayName": "talon-filetree",
     "publisher": "PaulSchaaf",
     "description": "An extension for navigating and manipulating the file tree quickly by voice",
-    "version": "0.5.7",
+    "version": "0.5.8",
     "repository": {
         "type": "git",
         "url": "https://github.com/paul-schaaf/talon-filetree"
@@ -17,6 +17,16 @@
     "activationEvents": [],
     "main": "./out/extension.js",
     "contributes": {
+        "configuration": {
+            "title": "talon-filetree",
+            "properties": {
+                "talon-filetree.useEmojis": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Use emojis in the file tree"
+                }
+            }
+        },
         "commands": [
             {
                 "command": "talon-filetree.toggleDirectoryOrOpenFile",

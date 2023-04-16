@@ -20,6 +20,10 @@ Creates a new file tree view that can be used with voice commands.
 -   Delete files
 -   Select files (useful for scrolling through file tree using keys and centering files in tree view)
 
+## Settings
+
+- letters are displayed as emojis to differentiate them from file names. This can be turned off in the settings.
+
 ## Talon Setup
 
 -   an example talon file can be found [here](./tree.talon)

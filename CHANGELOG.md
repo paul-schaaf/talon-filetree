@@ -1,3 +1,7 @@
+## 0.5.8 [2023-04-16]
+
+- letters are now displayed as emojis. This can be turned off in the settings.
+
 ## 0.5.7 [2023-04-16]
 
 - performance improvements

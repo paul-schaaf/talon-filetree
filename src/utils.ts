@@ -19,7 +19,7 @@ export function getDirectories(dirPath: string, level = 0) {
 
     return result;
 }
-export function numberToAlphabet(num: number) {
+export function numberToAlphabet(num: number, useEmoji: boolean) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     const length = alphabet.length;
     let result = "";
@@ -27,7 +27,9 @@ export function numberToAlphabet(num: number) {
     while (num > 0) {
         num--; // Adjust the number to a zero-based index
         const index = num % length;
-        result = alphabet[index] + result;
+        result =
+            (useEmoji ? letterToEmoji(alphabet[index]) : alphabet[index]) +
+            result;
         num = Math.floor(num / length);
     }
 
@@ -47,4 +49,67 @@ export function lettersToNumber(letters: string) {
     }
 
     return num;
+}
+
+function letterToEmoji(letter: string) {
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    // const emojis = [
+    //     "🅐",
+    //     "🅑",
+    //     "🅒",
+    //     "🅓",
+    //     "🅔",
+    //     "🅕",
+    //     "🅖",
+    //     "🅗",
+    //     "🅘",
+    //     "🅙",
+    //     "🅚",
+    //     "🅛",
+    //     "🅜",
+    //     "🅝",
+    //     "🅞",
+    //     "🅟",
+    //     "🅠",
+    //     "🅡",
+    //     "🅢",
+    //     "🅣",
+    //     "🅤",
+    //     "🅥",
+    //     "🅦",
+    //     "🅧",
+    //     "🅨",
+    //     "🅩"
+    // ];
+    const emojis = [
+        "Ⓐ",
+        "Ⓑ",
+        "Ⓒ",
+        "Ⓓ",
+        "Ⓔ",
+        "Ⓕ",
+        "Ⓖ",
+        "Ⓗ",
+        "Ⓘ",
+        "Ⓙ",
+        "Ⓚ",
+        "Ⓛ",
+        "Ⓜ",
+        "Ⓝ",
+        "Ⓞ",
+        "Ⓟ",
+        "Ⓠ",
+        "Ⓡ",
+        "Ⓢ",
+        "Ⓣ",
+        "Ⓤ",
+        "Ⓥ",
+        "Ⓦ",
+        "Ⓧ",
+        "Ⓨ",
+        "Ⓩ"
+    ];
+
+    const index = alphabet.indexOf(letter);
+    return emojis[index];
 }
