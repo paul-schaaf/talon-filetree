@@ -1,3 +1,7 @@
+## 0.5.10 [2023-04-16]
+
+- improve cross platform file path handling
+
 ## 0.5.9 [2023-04-16]
 
 - letters can now be displayed as emojis, lowercase, or uppercase

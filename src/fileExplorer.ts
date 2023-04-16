@@ -119,7 +119,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
 
-        const result = await simpleGit(workspaceFolder.uri.path).checkIgnore(
+        const result = await simpleGit(workspaceFolder.uri.fsPath).checkIgnore(
             path
         );
         return result;
@@ -197,8 +197,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                     const uri = vscode.Uri.file(
                         path.join(element.uri.fsPath, name)
                     );
-                    this.idPathMap.set(element.counter.value, uri.path);
-                    this.pathIdMap.set(uri.path, element.counter.value);
+                    this.idPathMap.set(element.counter.value, uri.fsPath);
+                    this.pathIdMap.set(uri.fsPath, element.counter.value);
                     return {
                         uri,
                         type,
@@ -243,8 +243,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                     const uri = vscode.Uri.file(
                         path.join(workspaceFolder.uri.fsPath, name)
                     );
-                    this.idPathMap.set(counter.value, uri.path);
-                    this.pathIdMap.set(uri.path, counter.value);
+                    this.idPathMap.set(counter.value, uri.fsPath);
+                    this.pathIdMap.set(uri.fsPath, counter.value);
                     return {
                         uri,
                         type,
@@ -281,7 +281,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             treeItem.contextValue = "file";
         } else {
             const priorItem = this.pathCollapsibleStateMap.get(
-                element.uri.path
+                element.uri.fsPath
             );
             if (priorItem) {
                 treeItem = new TreeItem(
@@ -309,7 +309,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         }
         this.idEntryMap.set(element.id, element);
         this.pathCollapsibleStateMap.set(
-            element.uri.path,
+            element.uri.fsPath,
             treeItem.collapsibleState!
         );
         return treeItem;
@@ -355,10 +355,10 @@ export class FileExplorer {
         // mouse clicks to expand/collapse
         // instead of the extension's provided commands
         this.treeView.onDidExpandElement((event) => {
-            this.treeDataProvider.expandPath(event.element.uri.path);
+            this.treeDataProvider.expandPath(event.element.uri.fsPath);
         });
         this.treeView.onDidCollapseElement((event) => {
-            this.treeDataProvider.collapsePath(event.element.uri.path);
+            this.treeDataProvider.collapsePath(event.element.uri.fsPath);
         });
 
         context.subscriptions.push(this.treeView);
@@ -441,7 +441,9 @@ export class FileExplorer {
         const workspaceFolder = (
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
-        if (!editor.document.uri.path.startsWith(workspaceFolder.uri.path)) {
+        if (
+            !editor.document.uri.fsPath.startsWith(workspaceFolder.uri.fsPath)
+        ) {
             vscode.window.showErrorMessage(
                 "Currently selected file is not a member of active workspace!"
             );
@@ -449,9 +451,9 @@ export class FileExplorer {
         }
 
         const directoriesToExpand = [];
-        let currentPath = path.dirname(editor.document.uri.path);
+        let currentPath = path.dirname(editor.document.uri.fsPath);
         while (true) {
-            if (currentPath === workspaceFolder.uri.path) {
+            if (currentPath === workspaceFolder.uri.fsPath) {
                 break;
             }
             directoriesToExpand.push(currentPath);
@@ -537,7 +539,7 @@ export class FileExplorer {
     }
 
     private collapseRoot(): void {
-        const workspacePath = vscode.workspace.workspaceFolders![0].uri.path;
+        const workspacePath = vscode.workspace.workspaceFolders![0].uri.fsPath;
         for (const directory of getDirectories(workspacePath)) {
             if (directory.level === 0) {
                 this.treeDataProvider.collapsePath(directory.path);
