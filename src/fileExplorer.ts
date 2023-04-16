@@ -2,7 +2,12 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as utils from "./fileUtils";
-import { LetterStyling, getDirectories, lettersToNumber, numberToAlphabet } from "./utils";
+import {
+    LetterStyling,
+    getDirectories,
+    lettersToNumber,
+    numberToAlphabet
+} from "./utils";
 const chokidar = require("chokidar");
 import { simpleGit } from "simple-git";
 const trash = require("fix-esm").require("trash");
@@ -465,8 +470,6 @@ export class FileExplorer {
     }
 
     private toggleDirectoryOrOpenFile(letters: string): void {
-        // @ts-expect-error
-        console.log(this.treeDataProvider.pathIdMap);
         const itemId = lettersToNumber(letters);
         if (itemId === undefined) {
             return;
