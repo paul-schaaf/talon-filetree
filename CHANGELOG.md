@@ -1,3 +1,7 @@
+## 0.5.7 [2023-04-16]
+
+- performance improvements
+
 ## 0.5.6 [2023-04-16]
 
 - improve startup performance (by removing initial file watches)

@@ -101,7 +101,10 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         this.isGitIgnoredFilesVisible = !this.isGitIgnoredFilesVisible;
     }
 
-    private async isIgnored(path: string): Promise<boolean> {
+    private async isIgnored(path: string[]): Promise<string[]> {
+        if (path.length === 0) {
+            return [];
+        }
         const workspaceFolder = (
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
@@ -109,21 +112,24 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         const result = await simpleGit(workspaceFolder.uri.path).checkIgnore(
             path
         );
-        return result.length === 0;
+        return result;
     }
 
     watch(uri: vscode.Uri): vscode.Disposable {
         const watcher = chokidar
-            .watch(uri.fsPath, { ignoreInitial: true })
+            .watch(uri.fsPath, {
+                ignoreInitial: true
+            })
             .on("all", () => {
                 this.idPathMap.clear();
                 this.pathIdMap.clear();
                 this.idEntryMap.clear();
-
                 this.refresh();
             });
 
-        return { dispose: () => watcher.close() };
+        return {
+            dispose: () => watcher.close()
+        };
     }
 
     readDirectory(
@@ -160,26 +166,20 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                 }
                 return a[1] === vscode.FileType.Directory ? -1 : 1;
             });
-            const nonGitIgnoredChildren: [
-                [string, vscode.FileType],
-                boolean
-            ][] = await Promise.all(
-                children.map(async (c) => [
-                    c,
-                    await this.isIgnored(
-                        vscode.Uri.file(path.join(element.uri.fsPath, c[0]))
-                            .path
-                    )
-                ])
-            );
+
             let childrenToReturn;
             if (this.isGitIgnoredFilesVisible) {
                 childrenToReturn = children;
             } else {
-                childrenToReturn = nonGitIgnoredChildren
-                    .filter((c) => c[1])
-                    .map((c) => c[0]);
+                const ignoredPaths: string[] = await this.isIgnored(
+                    children.map((c) => c[0])
+                );
+
+                const nonGitIgnoredChildren: [string, vscode.FileType][] =
+                    children.filter(([name]) => !ignoredPaths.includes(name));
+                childrenToReturn = nonGitIgnoredChildren;
             }
+
             return childrenToReturn
                 .filter(([name]) => !name.endsWith(".git"))
                 .map(([name, type]) => {
@@ -212,27 +212,20 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
                 }
                 return a[1] === vscode.FileType.Directory ? -1 : 1;
             });
-            const nonGitIgnoredChildren: [
-                [string, vscode.FileType],
-                boolean
-            ][] = await Promise.all(
-                children.map(async (c) => [
-                    c,
-                    await this.isIgnored(
-                        vscode.Uri.file(
-                            path.join(workspaceFolder.uri.fsPath, c[0])
-                        ).path
-                    )
-                ])
-            );
+
             let childrenToReturn;
             if (this.isGitIgnoredFilesVisible) {
                 childrenToReturn = children;
             } else {
-                childrenToReturn = nonGitIgnoredChildren
-                    .filter((c) => c[1])
-                    .map((c) => c[0]);
+                const ignoredPaths: string[] = await this.isIgnored(
+                    children.map((c) => c[0])
+                );
+
+                const nonGitIgnoredChildren: [string, vscode.FileType][] =
+                    children.filter(([name]) => !ignoredPaths.includes(name));
+                childrenToReturn = nonGitIgnoredChildren;
             }
+
             return childrenToReturn
                 .filter(([name]) => !name.endsWith(".git"))
                 .map(([name, type]) => {
@@ -656,7 +649,9 @@ export class FileExplorer {
             return;
         }
         const entry = this.treeDataProvider.getEntryFromId(itemId)!;
-        this.treeView.reveal(entry, { focus: true });
+        this.treeView.reveal(entry, {
+            focus: true
+        });
     }
 
     private async deleteFile(letters: string): Promise<void> {
