@@ -1,3 +1,7 @@
+## 0.5.11 [2023-04-17]
+
+- attempt to fix bug where deletion fails on macos
+
 ## 0.5.10 [2023-04-16]
 
 - improve cross platform file path handling
