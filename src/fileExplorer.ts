@@ -113,13 +113,15 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
     }
 
     watch(uri: vscode.Uri): vscode.Disposable {
-        const watcher = chokidar.watch(uri.fsPath).on("all", async () => {
-            this.idPathMap.clear();
-            this.pathIdMap.clear();
-            this.idEntryMap.clear();
+        const watcher = chokidar
+            .watch(uri.fsPath, { ignoreInitial: true })
+            .on("all", () => {
+                this.idPathMap.clear();
+                this.pathIdMap.clear();
+                this.idEntryMap.clear();
 
-            this.refresh();
-        });
+                this.refresh();
+            });
 
         return { dispose: () => watcher.close() };
     }

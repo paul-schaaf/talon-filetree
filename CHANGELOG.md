@@ -1,3 +1,7 @@
+## 0.5.6 [2023-04-16]
+
+- improve startup performance (by removing initial file watches)
+
 ## 0.5.5 [2023-04-16]
 
 - `tree current` command that expands the tree to show the current file.
