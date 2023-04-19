@@ -473,7 +473,6 @@ export class FileExplorer {
         this.treeDataProvider.refresh();
 
         const interval = setInterval(() => {
-            console.log("checking");
             const entry = this.treeDataProvider.getEntryFromPath(filePath);
             if (entry) {
                 this.treeView.reveal(entry, { focus: true });
