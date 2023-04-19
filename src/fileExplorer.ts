@@ -473,6 +473,7 @@ export class FileExplorer {
         this.treeDataProvider.refresh();
 
         const interval = setInterval(() => {
+            console.log("checking");
             const entry = this.treeDataProvider.getEntryFromPath(filePath);
             if (entry) {
                 this.treeView.reveal(entry, { focus: true });
@@ -481,6 +482,12 @@ export class FileExplorer {
                 }
             }
         }, 10);
+
+        // We add this just as a failsafe mechanism in case the entry never gets
+        // selected for whatever reason
+        setTimeout(() => {
+            clearInterval(interval);
+        }, 3000);
     }
 
     private toggleGitIgnoredFiles(): void {
