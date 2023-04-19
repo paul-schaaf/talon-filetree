@@ -68,6 +68,11 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
         return this.idEntryMap.get(id);
     }
 
+    getEntryFromPath(path: string): Entry | undefined {
+        const id = this.getIdFromPath(path);
+        return id === undefined ? undefined : this.idEntryMap.get(id);
+    }
+
     deletePathFromCollapsibleStateMap(path: string): void {
         this.pathCollapsibleStateMap.delete(path);
     }
@@ -451,7 +456,8 @@ export class FileExplorer {
         }
 
         const directoriesToExpand = [];
-        let currentPath = path.dirname(editor.document.uri.fsPath);
+        const filePath = editor.document.uri.fsPath;
+        let currentPath = path.dirname(filePath);
         while (true) {
             if (currentPath === workspaceFolder.uri.fsPath) {
                 break;
@@ -462,8 +468,25 @@ export class FileExplorer {
         directoriesToExpand.reverse();
         for (const directory of directoriesToExpand) {
             this.treeDataProvider.expandPath(directory);
-            this.treeDataProvider.refresh();
         }
+
+        this.treeDataProvider.refresh();
+
+        const interval = setInterval(() => {
+            const entry = this.treeDataProvider.getEntryFromPath(filePath);
+            if (entry) {
+                this.treeView.reveal(entry, { focus: true });
+                if (this.treeView.selection.includes(entry)) {
+                    clearInterval(interval);
+                }
+            }
+        }, 10);
+
+        // We add this just as a failsafe mechanism in case the entry never gets
+        // selected for whatever reason
+        setTimeout(() => {
+            clearInterval(interval);
+        }, 3000);
     }
 
     private toggleGitIgnoredFiles(): void {
