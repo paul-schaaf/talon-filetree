@@ -1,6 +1,6 @@
 ## 0.5.12 [2023-04-19]
 
-- `tree current` now selects and focuses the current file in the tree view
+- `tree current` now selects and focuses the current file in the tree view (thanks to PR by [david-tejada](https://github.com/david-tejada))
 
 ## 0.5.11 [2023-04-17]
 
