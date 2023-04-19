@@ -1,3 +1,7 @@
+## 0.5.12 [2023-04-19]
+
+- `tree current` now selects and focuses the current file in the tree view
+
 ## 0.5.11 [2023-04-17]
 
 - attempt to fix bug where deletion fails on macos
