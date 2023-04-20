@@ -124,10 +124,14 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
             vscode.workspace.workspaceFolders ?? []
         ).filter((folder) => folder.uri.scheme === "file")[0];
 
-        const result = await simpleGit(workspaceFolder.uri.fsPath).checkIgnore(
+        try {
+            return await simpleGit(workspaceFolder.uri.fsPath).checkIgnore(
             path
         );
-        return result;
+        } catch (error: unknown) {
+            // Not a git repository
+            return [];
+        }
     }
 
     watch(uri: vscode.Uri): vscode.Disposable {
