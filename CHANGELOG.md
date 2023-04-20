@@ -1,3 +1,7 @@
+## 0.5.13 [2023-04-20]
+
+- fix extension failing to load when workspace is not a git repository (thanks to PR by [david-tejada](https://github.com/david-tejada))
+
 ## 0.5.12 [2023-04-19]
 
 - `tree current` now selects and focuses the current file in the tree view (thanks to PR by [david-tejada](https://github.com/david-tejada))
