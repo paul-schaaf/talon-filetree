@@ -3,7 +3,8 @@
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
         "ecmaVersion": 6,
-        "sourceType": "module"
+        "sourceType": "module",
+        "project": ["tsconfig.json"]
     },
     "plugins": ["@typescript-eslint"],
     "rules": {
@@ -12,7 +13,11 @@
         "curly": "warn",
         "eqeqeq": "warn",
         "no-throw-literal": "warn",
-        "semi": "off"
+        "semi": "off",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/promise-function-async": "error",
+        "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+        "prefer-const": "warn"
     },
     "ignorePatterns": ["out", "dist", "**/*.d.ts"]
 }
