@@ -1,8 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { simpleGit } from "simple-git";
 import { HintManager } from "./HintManager";
-import { exists, getDescendantFolders } from "./fileUtils";
+import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
 import { getDecoratedHint, sleep, updateLetterStyling } from "./utils";
 
 const filesToIgnore = new Set([".git", ".DS_Store"]);
@@ -224,7 +223,6 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
             return children.map((child) => {
                 const hint = this.hintManager.get();
-                // const previousEntry = this.pathEntryMap.get(child.fsPath);
 
                 const entry = new Entry(
                     child,
@@ -259,7 +257,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
         const childPaths = children.map((child) => child[0]);
         const childrenToIgnore =
             this.excludeGitIgnore && childPaths.length > 0
-                ? await simpleGit(rootUri.fsPath).checkIgnore(childPaths)
+                ? await getGitIgnored(rootUri.fsPath, childPaths)
                 : [];
 
         const childEntries = children

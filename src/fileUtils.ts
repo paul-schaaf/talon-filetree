@@ -1,3 +1,4 @@
+import simpleGit from "simple-git";
 import * as vscode from "vscode";
 
 export async function exists(resource: vscode.Uri) {
@@ -37,4 +38,12 @@ export async function getDescendantFolders(
     }
 
     return processFolder(uri, 1);
+}
+
+export async function getGitIgnored(root: string, paths: string[]) {
+    try {
+        return await simpleGit(root).checkIgnore(paths);
+    } catch {
+        return [];
+    }
 }
