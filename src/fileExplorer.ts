@@ -517,7 +517,7 @@ export class FileExplorer {
     }
 
     private async openResource(resource: vscode.Uri) {
-        await vscode.window.showTextDocument(resource);
+        await vscode.commands.executeCommand("vscode.open", resource);
     }
 
     // This is a temporary workaround until this issue is solved:
@@ -587,7 +587,10 @@ export class FileExplorer {
         const entry = await this.treeDataProvider.getEntryFromHint(hint);
 
         if (!entry.isFolder) {
-            await vscode.window.showTextDocument(entry.resourceUri);
+            await vscode.commands.executeCommand(
+                "vscode.open",
+                entry.resourceUri
+            );
             await this.treeView.reveal(entry);
         } else if (
             entry.collapsibleState === vscode.TreeItemCollapsibleState.Collapsed
