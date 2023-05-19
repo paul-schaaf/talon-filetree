@@ -181,7 +181,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
         }
 
         if (entryToRemove.hint) {
-            this.hintManager.release(entryToRemove.hint);
+            this.hintManager.restore(entryToRemove.hint);
             this.hintEntryMap.delete(entryToRemove.hint);
             entryToRemove.hint = undefined;
         }

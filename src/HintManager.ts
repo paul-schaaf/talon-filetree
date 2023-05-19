@@ -13,7 +13,7 @@ export class HintManager {
         return this.hints.pop();
     }
 
-    release(hint: string) {
+    restore(hint: string) {
         this.hints.push(hint);
         this.debouncedSort();
     }
