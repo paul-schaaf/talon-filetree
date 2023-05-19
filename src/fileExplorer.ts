@@ -377,14 +377,14 @@ export class FileExplorer {
         );
 
         context.subscriptions.push(
-            vscode.window.onDidChangeActiveTextEditor((editor) => {
-                if (editor) {
-                    this.revealFile(editor.document.uri, true).catch(
-                        (error) => {
-                            throw error;
-                        }
-                    );
-                }
+            vscode.window.tabGroups.onDidChangeTabs(async () => {
+                await this.revealCurrentFile(true);
+            })
+        );
+
+        context.subscriptions.push(
+            vscode.window.tabGroups.onDidChangeTabGroups(async () => {
+                await this.revealCurrentFile(true);
             })
         );
 
@@ -412,13 +412,9 @@ export class FileExplorer {
 
         context.subscriptions.push(this.treeView);
 
-        const activeEditor = vscode.window.activeTextEditor;
-
-        if (activeEditor) {
-            this.revealFile(activeEditor.document.uri).catch((error) => {
-                throw error;
-            });
-        }
+        this.revealCurrentFile().catch((error) => {
+            console.error(error);
+        });
 
         vscode.commands.registerCommand(
             "talon-filetree.openResource",
@@ -490,7 +486,9 @@ export class FileExplorer {
         vscode.commands.registerCommand(
             "talon-filetree.revealCurrentFile",
             async () =>
-                this.showMessageIfError(async () => this.revealCurrentFile())
+                this.showMessageIfError(async () =>
+                    this.revealCurrentFile(false, true)
+                )
         );
     }
 
@@ -561,26 +559,35 @@ export class FileExplorer {
         }
     }
 
-    private async revealFile(uri: vscode.Uri, onlyIfVisible = false) {
-        if (!onlyIfVisible || this.treeView.visible) {
+    private async revealFile(uri: vscode.Uri, focus = false) {
+        try {
             await this.expandToResource(uri);
             const entry = await this.treeDataProvider.getEntryFromPath(
                 uri.fsPath
             );
-            if (entry && !this.treeView.selection.includes(entry)) {
-                await this.treeView.reveal(entry);
+            if (entry) {
+                await this.treeView.reveal(entry, { focus });
             }
+        } catch (error) {
+            console.error(error);
         }
     }
 
-    private async revealCurrentFile() {
-        const editor = vscode.window.activeTextEditor;
-
-        if (!editor) {
+    private async revealCurrentFile(onlyIfVisible = false, focus = false) {
+        if (onlyIfVisible && !this.treeView.visible) {
             return;
         }
 
-        await this.revealFile(editor.document.uri);
+        // Using this instead of vscode.window.activeTextEditor so that it works
+        // with files that are not text, like images
+        const input = vscode.window.tabGroups.activeTabGroup.activeTab
+            ?.input as { uri?: vscode.Uri };
+
+        const uri = input.uri;
+
+        if (uri) {
+            await this.revealFile(uri, focus);
+        }
     }
 
     private async toggleDirectoryOrOpenFile(hint: string) {
@@ -766,7 +773,7 @@ export class FileExplorer {
 
     private async select(hint: string) {
         const entry = await this.treeDataProvider.getEntryFromHint(hint);
-        await this.treeView.reveal(entry);
+        await this.treeView.reveal(entry, { focus: true });
     }
 
     private async deleteFile(hint: string): Promise<void> {
