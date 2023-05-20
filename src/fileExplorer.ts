@@ -1,7 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { HintManager } from "./HintManager";
-import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
+import {
+    exists,
+    getActiveTabUri,
+    getDescendantFolders,
+    getGitIgnored
+} from "./fileUtils";
 import { getDecoratedHint, sleep, updateLetterStyling } from "./utils";
 
 const filesToIgnore = new Set([".git", ".DS_Store"]);
@@ -578,12 +583,7 @@ export class FileExplorer {
             return;
         }
 
-        // Using this instead of vscode.window.activeTextEditor so that it works
-        // with files that are not text, like images
-        const input = vscode.window.tabGroups.activeTabGroup.activeTab
-            ?.input as { uri?: vscode.Uri };
-
-        const uri = input.uri;
+        const uri = getActiveTabUri();
 
         if (uri) {
             await this.revealFile(uri, focus);
