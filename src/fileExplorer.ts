@@ -548,18 +548,12 @@ export class FileExplorer {
             currentPath = path.dirname(currentPath);
         }
 
-        const firstDirectory = directoriesToExpand.pop();
-
-        if (firstDirectory) {
-            const firstDirectoryEntry =
-                await this.treeDataProvider.getEntryFromPath(firstDirectory);
-            this.treeDataProvider.addFoldersToExpand(directoriesToExpand);
-
-            if (firstDirectoryEntry) {
-                await this.treeView.reveal(firstDirectoryEntry, {
-                    select: false,
-                    expand: true
-                });
+        for (const directory of directoriesToExpand.reverse()) {
+            const entry = await this.treeDataProvider.getEntryFromPath(
+                directory
+            );
+            if (entry) {
+                await this.treeView.reveal(entry, { select: false, expand: 1 });
             }
         }
     }
