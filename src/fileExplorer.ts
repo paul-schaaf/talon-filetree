@@ -7,7 +7,12 @@ import {
     getDescendantFolders,
     getGitIgnored
 } from "./fileUtils";
-import { getDecoratedHint, sleep, updateLetterStyling } from "./utils";
+import {
+    getDecoratedHint,
+    sleep,
+    traverseTree,
+    updateLetterStyling
+} from "./utils";
 
 const filesToIgnore = new Set([".git", ".DS_Store"]);
 
@@ -23,6 +28,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly hintEntryMap = new Map<string, Entry>();
 
     private readonly hintManager = new HintManager();
+    private counter = 0;
     private excludeGitIgnore: boolean;
     private foldersToExpand = new Set<string>();
 
@@ -148,14 +154,39 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
         return entry;
     }
 
+    /**
+     * After calling this method it's very important to remember to call
+     * `treeDataProvider.refresh(entry)`. It's necessary so that the tree updates
+     * and to keep the hints in sync.
+     */
+    preExpandToLevel(entry: Entry, level: number) {
+        traverseTree(entry, (current, currentLevel) => {
+            if (currentLevel > 0 && current.isFolder) {
+                // Next time getChildren is called on the parent the entry will
+                // get a new id. This is to be able to redefine the entry's
+                // collapsibleState.
+                current.id = undefined;
+            }
+
+            if (currentLevel > level) {
+                this.pathEntryMap.delete(current.resourceUri.fsPath);
+
+                if (current.hint) {
+                    this.hintManager.restore(current.hint);
+                    this.hintEntryMap.delete(current.hint);
+                }
+            }
+        });
+    }
+
     // The property collapsibleState only determines the initial collapsible
     // state of a TreeItem and it doesn't change, we change it ourselves to
     // keep track of the element's collapsible state
-    expandEntry(entry: Entry) {
+    entryWasExpanded(entry: Entry) {
         entry.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
     }
 
-    async collapseEntry(entry: Entry) {
+    async entryWasCollapsed(entry: Entry) {
         entry.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
 
         // This is to avoid running out of one or two letter hints after opening
@@ -234,6 +265,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                     collapsibleState,
                     vscode.FileType.Directory,
                     undefined,
+                    String(this.counter++),
                     hint
                 );
 
@@ -275,13 +307,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
                 const previousEntry = this.pathEntryMap.get(uri.fsPath);
 
-                if (previousEntry && previousEntry.hint) {
-                    previousEntry.resourceUri = uri;
-                    previousEntry.parent = entry;
-                    return previousEntry;
-                }
-
-                const hint = this.hintManager.get();
+                const hint = previousEntry?.hint ?? this.hintManager.get();
 
                 let collapsibleState =
                     type === vscode.FileType.Directory
@@ -293,15 +319,21 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                     this.foldersToExpand.delete(uri.fsPath);
                 }
 
-                if (previousEntry?.collapsibleState) {
+                if (
+                    previousEntry?.collapsibleState &&
+                    previousEntry.id !== undefined
+                ) {
                     collapsibleState = previousEntry.collapsibleState;
                 }
+
+                const id = previousEntry?.id ?? String(this.counter++);
 
                 const childEntry = new Entry(
                     uri,
                     collapsibleState,
                     type,
                     entry,
+                    id,
                     hint
                 );
 
@@ -314,7 +346,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 return childEntry;
             });
 
-        if (entry) {
+        if (entry && entry.isFolder) {
             entry.children = childEntries;
         }
 
@@ -336,12 +368,14 @@ class Entry extends vscode.TreeItem {
     resourceUri: vscode.Uri;
     children?: Entry[];
     isFolder: boolean;
+    id?: string;
 
     constructor(
         resourceUri: vscode.Uri,
         collapsibleState: vscode.TreeItemCollapsibleState,
         type: vscode.FileType,
         parent: Entry | undefined,
+        id: string,
         public hint?: string
     ) {
         super(resourceUri, collapsibleState);
@@ -351,6 +385,7 @@ class Entry extends vscode.TreeItem {
         this.resourceUri = resourceUri;
         this.type = type;
         this.parent = parent;
+        this.id = id;
         this.isFolder =
             this.collapsibleState !== vscode.TreeItemCollapsibleState.None;
 
@@ -409,10 +444,10 @@ export class FileExplorer {
         );
 
         this.treeView.onDidExpandElement((event) => {
-            this.treeDataProvider.expandEntry(event.element);
+            this.treeDataProvider.entryWasExpanded(event.element);
         });
         this.treeView.onDidCollapseElement(async (event) => {
-            await this.treeDataProvider.collapseEntry(event.element);
+            await this.treeDataProvider.entryWasCollapsed(event.element);
         });
 
         context.subscriptions.push(this.treeView);
@@ -612,31 +647,24 @@ export class FileExplorer {
 
     private async expandDirectory(hint: string, level: number) {
         const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        this.treeDataProvider.preExpandToLevel(entry, level);
 
         if (level === 0) {
             await this.collapseEntry(entry);
+            this.treeDataProvider.refresh(entry.parent);
             return;
         }
 
-        // Since this operation can take up to a couple of seconds if we expand
-        // a large folder many levels we select it right away for immediate
-        // feedback.
-        await this.treeView.reveal(entry);
-
-        // This is to be able to expand more than three levels and work around
-        // this issue: https://github.com/microsoft/vscode/issues/181889
         const directoriesToExpand = await getDescendantFolders(
             entry.resourceUri,
-            level
+            level - 1
         );
         this.treeDataProvider.addFoldersToExpand(directoriesToExpand);
 
-        // Even though expand only goes up to three levels we can expand more
-        // levels since all the folders in directoriesToExpand will be expanded.
-        // One issue to consider is that if the entry is already expanded to
-        // three levels trying to expand to more levels won't work since
-        // getChildren won't be called for any folder.
-        await this.treeView.reveal(entry, { expand: level });
+        // This is necessary in case the target entry is collapsed
+        await this.treeView.reveal(entry, { expand: 1 });
+
+        this.treeDataProvider.refresh(entry);
     }
 
     private async collapseRoot() {

@@ -69,3 +69,25 @@ export async function sleep(ms: number) {
         }, ms);
     });
 }
+
+export function traverseTree<T extends { children?: T[] }>(
+    root: T,
+    callback: (entry: T, level: number) => void
+) {
+    const stack = [{ entry: root, level: 0 }];
+
+    while (stack.length > 0) {
+        const node = stack.pop()!;
+
+        callback(node.entry, node.level);
+
+        if (node.entry.children) {
+            for (let i = node.entry.children.length - 1; i >= 0; i--) {
+                stack.push({
+                    entry: node.entry.children[i],
+                    level: node.level + 1
+                });
+            }
+        }
+    }
+}
