@@ -26,7 +26,7 @@ Creates a new file tree view that can be used with voice commands.
 
 ## Talon Setup
 
--   an example talon file can be found [here](./tree.talon)
+-   a sample talon file can be found and cloned from [here](https://github.com/paul-schaaf/talon-filetree-commands)
 
 ## Known Issues
 
