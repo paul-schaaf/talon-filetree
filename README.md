@@ -22,7 +22,16 @@ Creates a new file tree view that can be used with voice commands.
 
 ## Settings
 
-- letters are displayed as emojis to differentiate them from file names. This can be changed in the settings.
+### Extension Settings
+
+-   Hints are displayed as emojis to differentiate them from file names. This can be changed in the settings.
+
+### Other Settings
+
+Apart from the settings declared by this extension there are other settings that affect the behavior of this extension:
+
+-   `files.exclude`: This setting defines glob patterns for excluding files and folders.
+-   `explorer.excludeGitIgnore`: This setting is used to determine if git ignored files should be shown. This setting can also be toggled using the command `tree git`.
 
 ## Talon Setup
 
@@ -30,4 +39,4 @@ Creates a new file tree view that can be used with voice commands.
 
 ## Known Issues
 
-- None currently
+-   None currently

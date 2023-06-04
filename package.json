@@ -116,7 +116,6 @@
         "prettier": "npx prettier --write ."
     },
     "devDependencies": {
-        "@types/glob": "^8.1.0",
         "@types/lodash": "^4.14.194",
         "@types/mocha": "^10.0.1",
         "@types/node": "16.x",
@@ -135,6 +134,7 @@
     ],
     "dependencies": {
         "lodash": "^4.17.21",
+        "minimatch": "^9.0.1",
         "simple-git": "^3.17.0"
     }
 }

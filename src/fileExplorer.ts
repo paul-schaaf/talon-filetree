@@ -13,8 +13,7 @@ import {
     traverseTree,
     updateLetterStyling
 } from "./utils";
-
-const filesToIgnore = new Set([".git", ".DS_Store"]);
+import { minimatch } from "minimatch";
 
 export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly _onDidChangeTreeData: vscode.EventEmitter<
@@ -30,6 +29,8 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly hintManager = new HintManager();
     private counter = 0;
     private excludeGitIgnore: boolean;
+    private excludeGlobPatterns = <string[]>[];
+
     private foldersToExpand = new Set<string>();
 
     private collapseWorkspaceFolders = false;
@@ -39,6 +40,11 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             .getConfiguration("explorer")
             .get("excludeGitIgnore") as boolean;
 
+        const filesExclude = vscode.workspace
+            .getConfiguration("files")
+            .get("exclude") as Record<string, boolean>;
+        this.excludeGlobPatterns = Object.keys(filesExclude);
+
         context.subscriptions.push(this.watch());
     }
 
@@ -47,6 +53,11 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             this.excludeGitIgnore = vscode.workspace
                 .getConfiguration("explorer")
                 .get("excludeGitIgnore") as boolean;
+
+            const filesExclude = vscode.workspace
+                .getConfiguration("files")
+                .get("exclude") as Record<string, boolean>;
+            this.excludeGlobPatterns = Object.keys(filesExclude);
         }
 
         this._onDidChangeTreeData.fire(entry);
@@ -298,12 +309,19 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 : [];
 
         const childEntries = children
-            .filter(
-                ([name]) =>
-                    !filesToIgnore.has(name) && !childrenToIgnore.includes(name)
-            )
             .map(([name, type]) => {
                 const uri = vscode.Uri.joinPath(rootUri, name);
+
+                const matchesExcludeGlobPattern = this.excludeGlobPatterns.some(
+                    (pattern) => minimatch(uri.fsPath, pattern)
+                );
+
+                if (
+                    childrenToIgnore.includes(name) ||
+                    matchesExcludeGlobPattern
+                ) {
+                    return undefined;
+                }
 
                 const previousEntry = this.pathEntryMap.get(uri.fsPath);
 
@@ -344,7 +362,8 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 }
 
                 return childEntry;
-            });
+            })
+            .filter((item): item is Entry => item !== undefined);
 
         if (entry && entry.isFolder) {
             entry.children = childEntries;
@@ -437,7 +456,10 @@ export class FileExplorer {
                     this.treeDataProvider.hintRefresh();
                 }
 
-                if (event.affectsConfiguration("explorer.excludeGitIgnore")) {
+                if (
+                    event.affectsConfiguration("explorer.excludeGitIgnore") ||
+                    event.affectsConfiguration("files.exclude")
+                ) {
                     this.treeDataProvider.refresh();
                 }
             })
