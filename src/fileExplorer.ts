@@ -313,7 +313,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 const uri = vscode.Uri.joinPath(rootUri, name);
 
                 const matchesExcludeGlobPattern = this.excludeGlobPatterns.some(
-                    (pattern) => minimatch(uri.fsPath, pattern)
+                    (pattern) => minimatch(uri.fsPath, pattern, { dot: true })
                 );
 
                 if (
