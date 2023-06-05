@@ -422,12 +422,24 @@ export class FileExplorer {
     private treeDataProvider: FileDataProvider;
     private treeView: vscode.TreeView<Entry>;
 
+    private autoReveal: boolean;
+    private autoRevealExcludeGlobPatterns = <string[]>[];
+
     constructor(context: vscode.ExtensionContext) {
         this.treeDataProvider = new FileDataProvider(context);
 
         this.treeView = vscode.window.createTreeView("filetree", {
             treeDataProvider: this.treeDataProvider
         });
+
+        this.autoReveal = vscode.workspace
+            .getConfiguration("explorer")
+            .get("autoReveal") as boolean;
+
+        const autoRevealeExclude = vscode.workspace
+            .getConfiguration("explorer")
+            .get("autoRevealExclude") as Record<string, boolean>;
+        this.autoRevealExcludeGlobPatterns = Object.keys(autoRevealeExclude);
 
         context.subscriptions.push(
             vscode.workspace.onDidChangeWorkspaceFolders(() => {
@@ -462,6 +474,12 @@ export class FileExplorer {
                 ) {
                     this.treeDataProvider.refresh();
                 }
+
+                if (event.affectsConfiguration("explorer.autoReveal")) {
+                    this.autoReveal = vscode.workspace
+                        .getConfiguration("explorer")
+                        .get("autoReveal") as boolean;
+                }
             })
         );
 
@@ -474,7 +492,7 @@ export class FileExplorer {
 
         context.subscriptions.push(this.treeView);
 
-        this.revealCurrentFile().catch((error) => {
+        this.revealCurrentFile(true).catch((error) => {
             console.error(error);
         });
 
@@ -629,14 +647,29 @@ export class FileExplorer {
         }
     }
 
-    private async revealCurrentFile(onlyIfVisible = false, focus = false) {
-        if (onlyIfVisible && !this.treeView.visible) {
+    private async revealCurrentFile(isAutoReveal = false, focus = false) {
+        if (isAutoReveal && (!this.treeView.visible || !this.autoReveal)) {
             return;
         }
 
         const uri = getActiveTabUri();
 
         if (uri) {
+            if (isAutoReveal) {
+                const matchesAutoRevealExclude =
+                    this.autoRevealExcludeGlobPatterns
+                        .map((pattern) => `${pattern}{,/**}`)
+                        .some((pattern) =>
+                            minimatch(uri.fsPath, pattern, {
+                                dot: true
+                            })
+                        );
+
+                if (matchesAutoRevealExclude) {
+                    return;
+                }
+            }
+
             await this.revealFile(uri, focus);
         }
     }
