@@ -1,3 +1,16 @@
+## 0.6.0 [2023-06-06]
+
+All changes in this release thanks to PR by [david-tejada](https://github.com/david-tejada)
+
+- Support multiple workspace folders.
+- Reveal active editor in the file tree when it changes.
+- Stable hints. Every file or folder has an associated hint and it doesn't change even if you collapse the parent folder (only in large folders to avoid running out of one or two letter hints).
+- Some settings are now configurable via existing vscode settings (see [README](./README.md)).
+- Add viewsWelcome and remove error if there is no workspace folder.
+
+**CHANGED:**
+- `tree <hint> zero` now closes the tree node. All other levels are shifted by one as well.
+
 ## 0.5.13 [2023-04-20]
 
 - fix extension failing to load when workspace is not a git repository (thanks to PR by [david-tejada](https://github.com/david-tejada))
