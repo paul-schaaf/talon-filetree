@@ -1,95 +1,93 @@
-import * as path from "path";
-import * as fs from "fs";
+import * as vscode from "vscode";
 
-export function getDirectories(dirPath: string, level = 0) {
-    let result: { path: string; level: number }[] = [];
-    try {
-        const files = fs.readdirSync(dirPath);
-        for (const file of files) {
-            const filePath = path.join(dirPath, file);
-            const stats = fs.statSync(filePath);
-            if (stats.isDirectory()) {
-                result.push({ path: filePath, level });
-                result = result.concat(getDirectories(filePath, level + 1));
-            }
-        }
-    } catch (error) {
-        console.error("Error reading directory:", error);
-    }
+const alphabet = "abcdefghijklmnopqrstuvwxyz";
+const emojiLetters = [
+    "Ⓐ",
+    "Ⓑ",
+    "Ⓒ",
+    "Ⓓ",
+    "Ⓔ",
+    "Ⓕ",
+    "Ⓖ",
+    "Ⓗ",
+    "Ⓘ",
+    "Ⓙ",
+    "Ⓚ",
+    "Ⓛ",
+    "Ⓜ",
+    "Ⓝ",
+    "Ⓞ",
+    "Ⓟ",
+    "Ⓠ",
+    "Ⓡ",
+    "Ⓢ",
+    "Ⓣ",
+    "Ⓤ",
+    "Ⓥ",
+    "Ⓦ",
+    "Ⓧ",
+    "Ⓨ",
+    "Ⓩ"
+];
 
-    return result;
-}
+const letterToEmojiMap = new Map(
+    [...alphabet].map((letter, index) => [letter, emojiLetters[index]])
+);
 
 export type LetterStyling = "emoji" | "lowercase" | "uppercase";
-export function numberToAlphabet(num: number, letterStyling: LetterStyling) {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const length = alphabet.length;
-    let results: string[] = [];
 
-    while (num > 0) {
-        num--; // Adjust the number to a zero-based index
-        const index = num % length;
-        if (letterStyling === "emoji") {
-            results.push(letterToEmoji(alphabet[index]));
-        } else if (letterStyling === "lowercase") {
-            results.push(alphabet[index]);
-        } else {
-            results.push(alphabet[index].toUpperCase());
-        }
-        
-        num = Math.floor(num / length);
-    }
+let config: vscode.WorkspaceConfiguration;
+let letterStyling: LetterStyling;
 
-    results.reverse();
-    return results.join("");
-}
-export function lettersToNumber(letters: string) {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const length = alphabet.length;
-    let num = 0;
-
-    for (let i = 0; i < letters.length; i++) {
-        const index = alphabet.indexOf(letters[i]);
-        if (index === -1) {
-            return undefined;
-        }
-        num = num * length + (index + 1);
-    }
-
-    return num;
+export function updateLetterStyling() {
+    config = vscode.workspace.getConfiguration("talon-filetree");
+    letterStyling = config.get("letterStyling") as LetterStyling;
 }
 
-function letterToEmoji(letter: string) {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const emojis = [
-        "Ⓐ",
-        "Ⓑ",
-        "Ⓒ",
-        "Ⓓ",
-        "Ⓔ",
-        "Ⓕ",
-        "Ⓖ",
-        "Ⓗ",
-        "Ⓘ",
-        "Ⓙ",
-        "Ⓚ",
-        "Ⓛ",
-        "Ⓜ",
-        "Ⓝ",
-        "Ⓞ",
-        "Ⓟ",
-        "Ⓠ",
-        "Ⓡ",
-        "Ⓢ",
-        "Ⓣ",
-        "Ⓤ",
-        "Ⓥ",
-        "Ⓦ",
-        "Ⓧ",
-        "Ⓨ",
-        "Ⓩ"
-    ];
+updateLetterStyling();
 
-    const index = alphabet.indexOf(letter);
-    return emojis[index];
+export function getDecoratedHint(hint: string) {
+    switch (letterStyling) {
+        case "emoji":
+            return letterToEmojiMap.get(hint);
+
+        case "uppercase":
+            return hint.toUpperCase();
+
+        case "lowercase":
+            return hint;
+
+        default:
+            break;
+    }
+}
+
+export async function sleep(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(true);
+        }, ms);
+    });
+}
+
+export function traverseTree<T extends { children?: T[] }>(
+    root: T,
+    callback: (entry: T, level: number) => void
+) {
+    const stack = [{ entry: root, level: 0 }];
+
+    while (stack.length > 0) {
+        const node = stack.pop()!;
+
+        callback(node.entry, node.level);
+
+        if (node.entry.children) {
+            for (let i = node.entry.children.length - 1; i >= 0; i--) {
+                stack.push({
+                    entry: node.entry.children[i],
+                    level: node.level + 1
+                });
+            }
+        }
+    }
 }

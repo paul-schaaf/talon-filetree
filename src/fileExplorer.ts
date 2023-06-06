@@ -1,731 +1,873 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as fs from "fs";
-import * as utils from "./fileUtils";
+import { HintManager } from "./HintManager";
 import {
-    LetterStyling,
-    getDirectories,
-    lettersToNumber,
-    numberToAlphabet
+    exists,
+    getActiveTabUri,
+    getDescendantFolders,
+    getGitIgnored
+} from "./fileUtils";
+import {
+    getDecoratedHint,
+    sleep,
+    traverseTree,
+    updateLetterStyling
 } from "./utils";
-const chokidar = require("chokidar");
-import { simpleGit } from "simple-git";
-const trash = require("fix-esm").require("trash");
+import { minimatch } from "minimatch";
 
-interface Entry {
-    uri: vscode.Uri;
-    type: vscode.FileType;
-    id: number;
-    counter: {
-        value: number;
-    };
-    parent: Entry | undefined;
-}
-
-export class FileSystemProvider implements vscode.TreeDataProvider<Entry> {
+export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly _onDidChangeTreeData: vscode.EventEmitter<
         Entry | undefined
     > = new vscode.EventEmitter<Entry | undefined>();
+
     readonly onDidChangeTreeData: vscode.Event<Entry | undefined> =
         this._onDidChangeTreeData.event;
-    private readonly idPathMap = new Map<number, string>();
-    private readonly pathIdMap = new Map<string, number>();
-    private readonly idEntryMap = new Map<number, Entry>();
-    private readonly pathCollapsibleStateMap = new Map<
-        string,
-        vscode.TreeItemCollapsibleState
-    >();
-    private readonly randomNumbers: number[] = [];
-    private isGitIgnoredFilesVisible = false;
-    private config: vscode.WorkspaceConfiguration;
 
-    constructor(config: vscode.WorkspaceConfiguration) {
-        this.config = config;
-        const workspaceFolder = (
-            vscode.workspace.workspaceFolders ?? []
-        ).filter((folder) => folder.uri.scheme === "file")[0];
-        if (workspaceFolder) {
-            this.watch(workspaceFolder.uri);
+    private readonly pathEntryMap = new Map<string, Entry>();
+    private readonly hintEntryMap = new Map<string, Entry>();
+
+    private readonly hintManager = new HintManager();
+    private counter = 0;
+    private excludeGitIgnore: boolean;
+    private excludeGlobPatterns = <string[]>[];
+
+    private foldersToExpand = new Set<string>();
+
+    private collapseWorkspaceFolders = false;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.excludeGitIgnore = vscode.workspace
+            .getConfiguration("explorer")
+            .get("excludeGitIgnore") as boolean;
+
+        const filesExclude = vscode.workspace
+            .getConfiguration("files")
+            .get("exclude") as Record<string, boolean>;
+        this.excludeGlobPatterns = Object.keys(filesExclude);
+
+        context.subscriptions.push(this.watch());
+    }
+
+    refresh(entry?: Entry) {
+        if (!entry) {
+            this.excludeGitIgnore = vscode.workspace
+                .getConfiguration("explorer")
+                .get("excludeGitIgnore") as boolean;
+
+            const filesExclude = vscode.workspace
+                .getConfiguration("files")
+                .get("exclude") as Record<string, boolean>;
+            this.excludeGlobPatterns = Object.keys(filesExclude);
         }
+
+        this._onDidChangeTreeData.fire(entry);
     }
 
-    refresh(config?: vscode.WorkspaceConfiguration): void {
-        if (config !== undefined) {
-            this.config = config;
+    hintRefresh() {
+        for (const entry of this.hintEntryMap.values()) {
+            entry.hint = undefined;
         }
-        this._onDidChangeTreeData.fire(undefined);
+
+        this.hintManager.reset();
+        this.refresh();
     }
 
-    getIdFromPath(path: string): number | undefined {
-        return this.pathIdMap.get(path);
-    }
+    watch() {
+        const watcher = vscode.workspace.createFileSystemWatcher("**/*");
 
-    getPathFromId(id: number): string | undefined {
-        return this.idPathMap.get(id);
-    }
+        watcher.onDidCreate(async (uri) => {
+            const parentPath = path.dirname(uri.fsPath);
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
 
-    getEntryFromId(id: number): Entry | undefined {
-        return this.idEntryMap.get(id);
-    }
+            if (!workspaceFolder) {
+                return;
+            }
 
-    getEntryFromPath(path: string): Entry | undefined {
-        const id = this.getIdFromPath(path);
-        return id === undefined ? undefined : this.idEntryMap.get(id);
-    }
-
-    deletePathFromCollapsibleStateMap(path: string): void {
-        this.pathCollapsibleStateMap.delete(path);
-    }
-
-    isPathCollapsible(path: string): boolean {
-        return (
-            this.pathCollapsibleStateMap.get(path) !==
-            vscode.TreeItemCollapsibleState.None
-        );
-    }
-
-    isPathExpanded(path: string): boolean {
-        return (
-            this.pathCollapsibleStateMap.get(path) ===
-            vscode.TreeItemCollapsibleState.Expanded
-        );
-    }
-
-    isPathCollapsed(path: string): boolean {
-        return (
-            this.pathCollapsibleStateMap.get(path) ===
-            vscode.TreeItemCollapsibleState.Collapsed
-        );
-    }
-
-    expandPath(path: string): void {
-        this.pathCollapsibleStateMap.set(
-            path,
-            vscode.TreeItemCollapsibleState.Expanded
-        );
-    }
-
-    collapsePath(path: string): void {
-        this.pathCollapsibleStateMap.set(
-            path,
-            vscode.TreeItemCollapsibleState.Collapsed
-        );
-    }
-
-    toggleGitIgnoredFiles(): void {
-        this.isGitIgnoredFilesVisible = !this.isGitIgnoredFilesVisible;
-    }
-
-    private async isIgnored(path: string[]): Promise<string[]> {
-        if (path.length === 0) {
-            return [];
-        }
-        const workspaceFolder = (
-            vscode.workspace.workspaceFolders ?? []
-        ).filter((folder) => folder.uri.scheme === "file")[0];
-
-        try {
-            return await simpleGit(workspaceFolder.uri.fsPath).checkIgnore(
-            path
-        );
-        } catch (error: unknown) {
-            // Not a git repository
-            return [];
-        }
-    }
-
-    watch(uri: vscode.Uri): vscode.Disposable {
-        const watcher = chokidar
-            .watch(uri.fsPath, {
-                ignoreInitial: true
-            })
-            .on("all", () => {
-                this.idPathMap.clear();
-                this.pathIdMap.clear();
-                this.idEntryMap.clear();
+            if (parentPath === workspaceFolder.uri.fsPath) {
                 this.refresh();
-            });
-
-        return {
-            dispose: () => watcher.close()
-        };
-    }
-
-    readDirectory(
-        uri: vscode.Uri
-    ): [string, vscode.FileType][] | Thenable<[string, vscode.FileType][]> {
-        return this._readDirectory(uri);
-    }
-
-    async _readDirectory(
-        uri: vscode.Uri
-    ): Promise<[string, vscode.FileType][]> {
-        const children = await utils.readdir(uri.fsPath);
-
-        const result: [string, vscode.FileType][] = [];
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i];
-            const stat = new utils.FileStat(
-                await utils.stat(path.join(uri.fsPath, child))
-            );
-            result.push([child, stat.type]);
-        }
-
-        return Promise.resolve(result);
-    }
-
-    // tree data provider
-
-    async getChildren(element?: Entry): Promise<Entry[]> {
-        if (element) {
-            const children = await this.readDirectory(element.uri);
-            children.sort((a, b) => {
-                if (a[1] === b[1]) {
-                    return a[0].localeCompare(b[0]);
-                }
-                return a[1] === vscode.FileType.Directory ? -1 : 1;
-            });
-
-            let childrenToReturn;
-            if (this.isGitIgnoredFilesVisible) {
-                childrenToReturn = children;
             } else {
-                const ignoredPaths: string[] = await this.isIgnored(
-                    children.map((c) => c[0])
-                );
+                const parentEntry = await this.getEntryFromPath(parentPath);
 
-                const nonGitIgnoredChildren: [string, vscode.FileType][] =
-                    children.filter(([name]) => !ignoredPaths.includes(name));
-                childrenToReturn = nonGitIgnoredChildren;
+                // If there is no parentEntry it might be because it is
+                // collapsed or git ignored
+                if (parentEntry) {
+                    this.refresh(parentEntry);
+                }
+            }
+        });
+
+        watcher.onDidDelete(async (uri) => {
+            const parentPath = path.dirname(uri.fsPath);
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+
+            if (!workspaceFolder) {
+                return;
             }
 
-            return childrenToReturn
-                .filter(([name]) => !name.endsWith(".git"))
-                .map(([name, type]) => {
-                    element.counter.value += 1;
-                    const uri = vscode.Uri.file(
-                        path.join(element.uri.fsPath, name)
-                    );
-                    this.idPathMap.set(element.counter.value, uri.fsPath);
-                    this.pathIdMap.set(uri.fsPath, element.counter.value);
-                    return {
-                        uri,
-                        type,
-                        id: element.counter.value,
-                        counter: element.counter,
-                        parent: element
-                    };
-                });
-        }
-
-        const counter = { value: 0 };
-
-        const workspaceFolder = (
-            vscode.workspace.workspaceFolders ?? []
-        ).filter((folder) => folder.uri.scheme === "file")[0];
-        if (workspaceFolder) {
-            const children = await this.readDirectory(workspaceFolder.uri);
-            children.sort((a, b) => {
-                if (a[1] === b[1]) {
-                    return a[0].localeCompare(b[0]);
-                }
-                return a[1] === vscode.FileType.Directory ? -1 : 1;
-            });
-
-            let childrenToReturn;
-            if (this.isGitIgnoredFilesVisible) {
-                childrenToReturn = children;
+            if (parentPath === workspaceFolder.uri.fsPath) {
+                this.refresh();
             } else {
-                const ignoredPaths: string[] = await this.isIgnored(
-                    children.map((c) => c[0])
-                );
+                const parentEntry = await this.getEntryFromPath(parentPath);
 
-                const nonGitIgnoredChildren: [string, vscode.FileType][] =
-                    children.filter(([name]) => !ignoredPaths.includes(name));
-                childrenToReturn = nonGitIgnoredChildren;
+                // If there is no parentEntry it might be because it is
+                // collapsed or git ignored
+                if (parentEntry) {
+                    this.refresh(parentEntry);
+                }
             }
 
-            return childrenToReturn
-                .filter(([name]) => !name.endsWith(".git"))
-                .map(([name, type]) => {
-                    counter.value += 1;
-                    const uri = vscode.Uri.file(
-                        path.join(workspaceFolder.uri.fsPath, name)
-                    );
-                    this.idPathMap.set(counter.value, uri.fsPath);
-                    this.pathIdMap.set(uri.fsPath, counter.value);
-                    return {
-                        uri,
-                        type,
-                        id: counter.value,
-                        counter,
-                        parent: undefined
-                    };
-                });
-        }
+            await this.removeEntry(uri);
+        });
 
-        return [];
+        watcher.onDidChange((uri) => {
+            if (
+                path.basename(uri.fsPath) === ".gitignore" &&
+                this.excludeGitIgnore
+            ) {
+                this.refresh();
+            }
+        });
+
+        return watcher;
     }
 
-    getParent(element: Entry): vscode.ProviderResult<Entry> {
-        return element.parent;
-    }
+    async getEntryFromPath(path: string): Promise<Entry | undefined> {
+        return new Promise((resolve) => {
+            let timedOut = false;
 
-    getTreeItem(element: Entry): vscode.TreeItem {
-        let treeItem = new TreeItem(
-            element.uri,
-            element.type === vscode.FileType.Directory
-                ? vscode.TreeItemCollapsibleState.Collapsed
-                : vscode.TreeItemCollapsibleState.None,
-            element.id,
-            element,
-            this.config.get("letterStyling")!
-        );
-        if (element.type === vscode.FileType.File) {
-            treeItem.command = {
-                command: "fileExplorer.openFile",
-                title: "Open File",
-                arguments: [element.uri]
+            const timeout = setTimeout(() => {
+                timedOut = true;
+                resolve(undefined);
+            }, 1000);
+
+            const getEntry = () => {
+                const entry = this.pathEntryMap.get(path);
+                if (!entry && !timedOut) {
+                    setTimeout(() => {
+                        getEntry();
+                    }, 20);
+                } else {
+                    clearTimeout(timeout);
+                    resolve(entry);
+                }
             };
-            treeItem.contextValue = "file";
-        } else {
-            const priorItem = this.pathCollapsibleStateMap.get(
-                element.uri.fsPath
-            );
-            if (priorItem) {
-                treeItem = new TreeItem(
-                    element.uri,
-                    priorItem,
-                    element.id,
-                    element,
-                    this.config.get("letterStyling")!
-                );
-                let randomNumber;
-                while (true) {
-                    randomNumber = Math.random();
-                    if (this.randomNumbers.includes(randomNumber)) {
-                        continue;
-                    }
-                    this.randomNumbers.push(randomNumber);
-                    const index = this.randomNumbers.indexOf(element.id, 0);
-                    if (index > -1) {
-                        this.randomNumbers.splice(index, 1);
-                    }
-                    break;
+
+            getEntry();
+        });
+    }
+
+    async getEntryFromHint(hint: string) {
+        const entry = this.hintEntryMap.get(hint);
+        if (!entry) {
+            throw new Error(`No entry for hint '${hint}'`);
+        }
+
+        return entry;
+    }
+
+    /**
+     * After calling this method it's very important to remember to call
+     * `treeDataProvider.refresh(entry)`. It's necessary so that the tree updates
+     * and to keep the hints in sync.
+     */
+    preExpandToLevel(entry: Entry, level: number) {
+        traverseTree(entry, (current, currentLevel) => {
+            if (currentLevel > 0 && current.isFolder) {
+                // Next time getChildren is called on the parent the entry will
+                // get a new id. This is to be able to redefine the entry's
+                // collapsibleState.
+                current.id = undefined;
+            }
+
+            if (currentLevel > level) {
+                this.pathEntryMap.delete(current.resourceUri.fsPath);
+
+                if (current.hint) {
+                    this.hintManager.restore(current.hint);
+                    this.hintEntryMap.delete(current.hint);
                 }
-                treeItem.id = randomNumber.toString();
+            }
+        });
+    }
+
+    // The property collapsibleState only determines the initial collapsible
+    // state of a TreeItem and it doesn't change, we change it ourselves to
+    // keep track of the element's collapsible state
+    entryWasExpanded(entry: Entry) {
+        entry.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+    }
+
+    async entryWasCollapsed(entry: Entry) {
+        entry.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
+
+        // This is to avoid running out of one or two letter hints after opening
+        // and closing a large folder like node_modules
+        if (entry.children && entry.children.length > 100) {
+            if (entry.children) {
+                for (const child of entry.children) {
+                    await this.removeEntry(child.resourceUri, false);
+                }
+            }
+            this.refresh(entry.parent);
+        }
+    }
+
+    postCollapseRoot() {
+        this.hintManager.reset();
+        this.hintEntryMap.clear();
+        this.pathEntryMap.clear();
+        this.collapseWorkspaceFolders = true;
+        this.refresh();
+    }
+
+    async removeEntry(uri: vscode.Uri, hard = true) {
+        const entryToRemove = await this.getEntryFromPath(uri.fsPath);
+
+        if (!entryToRemove) {
+            return;
+        }
+
+        if (entryToRemove.hint) {
+            this.hintManager.restore(entryToRemove.hint);
+            this.hintEntryMap.delete(entryToRemove.hint);
+            entryToRemove.hint = undefined;
+        }
+
+        // If hard is false we don't remove it from pathEntryMap because we want
+        // to restore its collapsibleState for when the entry is generated again
+        // in getChildren
+        if (hard) {
+            this.pathEntryMap.delete(entryToRemove.resourceUri.fsPath);
+        }
+
+        if (entryToRemove?.children) {
+            for (const children of entryToRemove.children) {
+                await this.removeEntry(children.resourceUri, hard);
             }
         }
-        this.idEntryMap.set(element.id, element);
-        this.pathCollapsibleStateMap.set(
-            element.uri.fsPath,
-            treeItem.collapsibleState!
-        );
-        return treeItem;
+    }
+
+    addFoldersToExpand(folders: string[]) {
+        for (const folder of folders) {
+            this.foldersToExpand.add(folder);
+        }
+    }
+
+    async getChildren(entry?: Entry) {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+
+        if (!workspaceFolders) {
+            return [];
+        }
+
+        // Multiple workspace folders
+        if (!entry && workspaceFolders.length > 1) {
+            const children = workspaceFolders.map((folder) => folder.uri);
+            const collapsibleState = this.collapseWorkspaceFolders
+                ? vscode.TreeItemCollapsibleState.Collapsed
+                : vscode.TreeItemCollapsibleState.Expanded;
+            this.collapseWorkspaceFolders = false;
+
+            return children.map((child) => {
+                const hint = this.hintManager.get();
+
+                const entry = new Entry(
+                    child,
+                    collapsibleState,
+                    vscode.FileType.Directory,
+                    undefined,
+                    String(this.counter++),
+                    hint
+                );
+
+                this.pathEntryMap.set(child.fsPath, entry);
+
+                if (hint) {
+                    this.hintEntryMap.set(hint, entry);
+                }
+
+                return entry;
+            });
+        }
+
+        const rootUri = entry
+            ? entry.resourceUri
+            : vscode.workspace.workspaceFolders![0].uri;
+        const children = await vscode.workspace.fs.readDirectory(rootUri);
+
+        children.sort((a, b) => {
+            if (a[1] === b[1]) {
+                return a[0].localeCompare(b[0]);
+            }
+            return a[1] === vscode.FileType.Directory ? -1 : 1;
+        });
+
+        const childPaths = children.map((child) => child[0]);
+        const childrenToIgnore =
+            this.excludeGitIgnore && childPaths.length > 0
+                ? await getGitIgnored(rootUri.fsPath, childPaths)
+                : [];
+
+        const childEntries = children
+            .map(([name, type]) => {
+                const uri = vscode.Uri.joinPath(rootUri, name);
+
+                const matchesExcludeGlobPattern = this.excludeGlobPatterns.some(
+                    (pattern) => minimatch(uri.fsPath, pattern, { dot: true })
+                );
+
+                if (
+                    childrenToIgnore.includes(name) ||
+                    matchesExcludeGlobPattern
+                ) {
+                    return undefined;
+                }
+
+                const previousEntry = this.pathEntryMap.get(uri.fsPath);
+
+                const hint = previousEntry?.hint ?? this.hintManager.get();
+
+                let collapsibleState =
+                    type === vscode.FileType.Directory
+                        ? vscode.TreeItemCollapsibleState.Collapsed
+                        : vscode.TreeItemCollapsibleState.None;
+
+                if (this.foldersToExpand.has(uri.fsPath)) {
+                    collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+                    this.foldersToExpand.delete(uri.fsPath);
+                }
+
+                if (
+                    previousEntry?.collapsibleState &&
+                    previousEntry.id !== undefined
+                ) {
+                    collapsibleState = previousEntry.collapsibleState;
+                }
+
+                const id = previousEntry?.id ?? String(this.counter++);
+
+                const childEntry = new Entry(
+                    uri,
+                    collapsibleState,
+                    type,
+                    entry,
+                    id,
+                    hint
+                );
+
+                this.pathEntryMap.set(uri.fsPath, childEntry);
+
+                if (hint) {
+                    this.hintEntryMap.set(hint, childEntry);
+                }
+
+                return childEntry;
+            })
+            .filter((item): item is Entry => item !== undefined);
+
+        if (entry && entry.isFolder) {
+            entry.children = childEntries;
+        }
+
+        return childEntries;
+    }
+
+    getParent(entry: Entry): vscode.ProviderResult<Entry> {
+        return entry.parent;
+    }
+
+    getTreeItem(entry: Entry): vscode.TreeItem {
+        return entry;
     }
 }
 
-class TreeItem extends vscode.TreeItem {
+class Entry extends vscode.TreeItem {
+    type: vscode.FileType;
+    parent: Entry | undefined;
+    resourceUri: vscode.Uri;
+    children?: Entry[];
+    isFolder: boolean;
+    id?: string;
+
     constructor(
         resourceUri: vscode.Uri,
         collapsibleState: vscode.TreeItemCollapsibleState,
-        public readonly customId: number,
-        public readonly entry: Entry,
-        readonly letterStyling: LetterStyling
+        type: vscode.FileType,
+        parent: Entry | undefined,
+        id: string,
+        public hint?: string
     ) {
         super(resourceUri, collapsibleState);
-        this.description = numberToAlphabet(customId, letterStyling);
+        if (hint) {
+            this.description = getDecoratedHint(hint);
+        }
+        this.resourceUri = resourceUri;
+        this.type = type;
+        this.parent = parent;
+        this.id = id;
+        this.isFolder =
+            this.collapsibleState !== vscode.TreeItemCollapsibleState.None;
+
+        if (this.type === vscode.FileType.File) {
+            this.command = {
+                command: "talon-filetree.openResource",
+                title: "Open File",
+                arguments: [this.resourceUri]
+            };
+        }
     }
 }
 
 export class FileExplorer {
-    private treeDataProvider: FileSystemProvider;
+    private treeDataProvider: FileDataProvider;
     private treeView: vscode.TreeView<Entry>;
 
+    private autoReveal: boolean;
+    private autoRevealExcludeGlobPatterns = <string[]>[];
+
     constructor(context: vscode.ExtensionContext) {
-        const provider = new FileSystemProvider(
-            vscode.workspace.getConfiguration("talon-filetree")
-        );
-        this.treeDataProvider = provider;
+        this.treeDataProvider = new FileDataProvider(context);
+
         this.treeView = vscode.window.createTreeView("filetree", {
-            treeDataProvider: provider
+            treeDataProvider: this.treeDataProvider
         });
+
+        this.autoReveal = vscode.workspace
+            .getConfiguration("explorer")
+            .get("autoReveal") as boolean;
+
+        const autoRevealeExclude = vscode.workspace
+            .getConfiguration("explorer")
+            .get("autoRevealExclude") as Record<string, boolean>;
+        this.autoRevealExcludeGlobPatterns = Object.keys(autoRevealeExclude);
+
         context.subscriptions.push(
-            vscode.workspace.onDidChangeConfiguration(() => {
-                this.treeDataProvider.refresh(
-                    vscode.workspace.getConfiguration("talon-filetree")
-                );
-            }, this)
+            vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                this.treeDataProvider.refresh();
+            })
         );
 
-        // these two subscriptions make sure
-        // that the extension's collasible state
-        // map is kept up to date when user uses
-        // mouse clicks to expand/collapse
-        // instead of the extension's provided commands
+        context.subscriptions.push(
+            vscode.window.tabGroups.onDidChangeTabs(async () => {
+                await this.revealCurrentFile(true);
+            })
+        );
+
+        context.subscriptions.push(
+            vscode.window.tabGroups.onDidChangeTabGroups(async () => {
+                await this.revealCurrentFile(true);
+            })
+        );
+
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration((event) => {
+                if (
+                    event.affectsConfiguration("talon-filetree.letterStyling")
+                ) {
+                    updateLetterStyling();
+                    this.treeDataProvider.hintRefresh();
+                }
+
+                if (
+                    event.affectsConfiguration("explorer.excludeGitIgnore") ||
+                    event.affectsConfiguration("files.exclude")
+                ) {
+                    this.treeDataProvider.refresh();
+                }
+
+                if (event.affectsConfiguration("explorer.autoReveal")) {
+                    this.autoReveal = vscode.workspace
+                        .getConfiguration("explorer")
+                        .get("autoReveal") as boolean;
+                }
+            })
+        );
+
         this.treeView.onDidExpandElement((event) => {
-            this.treeDataProvider.expandPath(event.element.uri.fsPath);
+            this.treeDataProvider.entryWasExpanded(event.element);
         });
-        this.treeView.onDidCollapseElement((event) => {
-            this.treeDataProvider.collapsePath(event.element.uri.fsPath);
+        this.treeView.onDidCollapseElement(async (event) => {
+            await this.treeDataProvider.entryWasCollapsed(event.element);
         });
 
         context.subscriptions.push(this.treeView);
-        vscode.commands.registerCommand("fileExplorer.openFile", (resource) =>
-            this.showMessageIfError(() => this.openResource(resource))
+
+        this.revealCurrentFile(true).catch((error) => {
+            console.error(error);
+        });
+
+        vscode.commands.registerCommand(
+            "talon-filetree.openResource",
+            async (resource) =>
+                this.showMessageIfError(async () => this.openResource(resource))
         );
         vscode.commands.registerCommand(
             "talon-filetree.toggleDirectoryOrOpenFile",
-            (letters) =>
-                this.showMessageIfError(() =>
-                    this.toggleDirectoryOrOpenFile(letters)
+            async (hint) =>
+                this.showMessageIfError(async () =>
+                    this.toggleDirectoryOrOpenFile(hint)
                 )
         );
-        vscode.commands.registerCommand("talon-filetree.moveFile", (from, to) =>
-            this.showMessageIfError(() => this.moveFile(from, to))
+        vscode.commands.registerCommand(
+            "talon-filetree.moveFile",
+            async (fromHint, toHint) =>
+                this.showMessageIfError(async () =>
+                    this.moveFile(fromHint, toHint)
+                )
         );
-        vscode.commands.registerCommand("talon-filetree.openFile", (letters) =>
-            this.showMessageIfError(() => this.openFile(letters))
+        vscode.commands.registerCommand(
+            "talon-filetree.openFile",
+            async (hint) =>
+                this.showMessageIfError(async () => this.openFile(hint))
         );
         vscode.commands.registerCommand(
             "talon-filetree.renameFile",
-            (letters) => this.showMessageIfError(() => this.renameFile(letters))
+            async (hint) =>
+                this.showMessageIfError(async () => this.renameFile(hint))
         );
         vscode.commands.registerCommand(
             "talon-filetree.expandDirectory",
-            (letters, level) =>
-                this.showMessageIfError(() =>
-                    this.expandDirectory(letters, level)
+            async (hint, level) =>
+                this.showMessageIfError(async () =>
+                    this.expandDirectory(hint, level)
                 )
         );
         vscode.commands.registerCommand(
             "talon-filetree.createFile",
-            (letters) => this.showMessageIfError(() => this.createFile(letters))
+            async (hint) =>
+                this.showMessageIfError(async () => this.createFile(hint))
         );
         vscode.commands.registerCommand(
             "talon-filetree.deleteFile",
-            (letters) => this.showMessageIfError(() => this.deleteFile(letters))
+            async (hint) =>
+                this.showMessageIfError(async () => this.deleteFile(hint))
         );
-        vscode.commands.registerCommand("talon-filetree.collapseRoot", () =>
-            this.showMessageIfError(() => this.collapseRoot())
+        vscode.commands.registerCommand(
+            "talon-filetree.collapseRoot",
+            async () => this.showMessageIfError(async () => this.collapseRoot())
         );
-        vscode.commands.registerCommand("talon-filetree.select", (letters) =>
-            this.showMessageIfError(() => this.select(letters))
+        vscode.commands.registerCommand("talon-filetree.select", async (hint) =>
+            this.showMessageIfError(async () => this.select(hint))
         );
         vscode.commands.registerCommand(
             "talon-filetree.closeParent",
-            (letters) =>
-                this.showMessageIfError(() =>
-                    this.closeParentDirectory(letters)
+            async (hint) =>
+                this.showMessageIfError(async () =>
+                    this.closeParentDirectory(hint)
                 )
         );
         vscode.commands.registerCommand(
             "talon-filetree.toggleGitIgnoredFiles",
-            () => this.showMessageIfError(() => this.toggleGitIgnoredFiles())
+            async () =>
+                this.showMessageIfError(async () =>
+                    this.toggleGitIgnoredFiles()
+                )
         );
         vscode.commands.registerCommand(
             "talon-filetree.revealCurrentFile",
-            () => this.showMessageIfError(() => this.revealCurrentFile())
+            async () =>
+                this.showMessageIfError(async () =>
+                    this.revealCurrentFile(false, true)
+                )
         );
     }
 
-    private showMessageIfError(f: any): void {
+    private async showMessageIfError(f: () => Promise<void>) {
         try {
-            f();
-        } catch (e: any) {
-            vscode.window.showErrorMessage(e.message);
-            throw e;
-        }
-    }
+            await f();
+        } catch (error: any) {
+            console.error(error);
 
-    private openResource(resource: vscode.Uri): void {
-        vscode.window.showTextDocument(resource);
-    }
-
-    private revealCurrentFile(): void {
-        const editor = vscode.window.activeTextEditor;
-        if (editor === undefined) {
-            return;
-        }
-        const workspaceFolder = (
-            vscode.workspace.workspaceFolders ?? []
-        ).filter((folder) => folder.uri.scheme === "file")[0];
-        if (
-            !editor.document.uri.fsPath.startsWith(workspaceFolder.uri.fsPath)
-        ) {
-            vscode.window.showErrorMessage(
-                "Currently selected file is not a member of active workspace!"
+            await vscode.window.showErrorMessage(
+                `talon-filetree: ${error.message}`
             );
+        }
+    }
+
+    async toggleGitIgnoredFiles() {
+        const excludeGitIgnore = vscode.workspace
+            .getConfiguration("explorer")
+            .get("excludeGitIgnore") as boolean;
+
+        await vscode.workspace
+            .getConfiguration("explorer")
+            .update("excludeGitIgnore", !excludeGitIgnore, true);
+    }
+
+    private async openResource(resource: vscode.Uri) {
+        await vscode.commands.executeCommand("vscode.open", resource);
+    }
+
+    // This is a temporary workaround until this issue is solved:
+    // https://github.com/microsoft/vscode/issues/92176
+    private async collapseEntry(entry: Entry) {
+        await this.treeView.reveal(entry, { focus: true });
+        await vscode.commands.executeCommand("list.collapse");
+        await vscode.commands.executeCommand(
+            "workbench.action.focusActiveEditorGroup"
+        );
+    }
+
+    private async expandToResource(uri: vscode.Uri) {
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+
+        if (!workspaceFolder) {
             return;
         }
 
         const directoriesToExpand = [];
-        const filePath = editor.document.uri.fsPath;
-        let currentPath = path.dirname(filePath);
-        while (true) {
-            if (currentPath === workspaceFolder.uri.fsPath) {
-                break;
-            }
+        let currentPath = path.dirname(uri.fsPath);
+
+        while (currentPath !== workspaceFolder.uri.fsPath) {
             directoriesToExpand.push(currentPath);
             currentPath = path.dirname(currentPath);
         }
-        directoriesToExpand.reverse();
-        for (const directory of directoriesToExpand) {
-            this.treeDataProvider.expandPath(directory);
-        }
 
-        this.treeDataProvider.refresh();
-
-        const interval = setInterval(() => {
-            const entry = this.treeDataProvider.getEntryFromPath(filePath);
+        for (const directory of directoriesToExpand.reverse()) {
+            const entry = await this.treeDataProvider.getEntryFromPath(
+                directory
+            );
             if (entry) {
-                this.treeView.reveal(entry, { focus: true });
-                if (this.treeView.selection.includes(entry)) {
-                    clearInterval(interval);
+                await this.treeView.reveal(entry, { select: false, expand: 1 });
+            }
+        }
+    }
+
+    private async revealFile(uri: vscode.Uri, focus = false) {
+        try {
+            await this.expandToResource(uri);
+            const entry = await this.treeDataProvider.getEntryFromPath(
+                uri.fsPath
+            );
+            if (entry) {
+                await this.treeView.reveal(entry, { focus });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    private async revealCurrentFile(isAutoReveal = false, focus = false) {
+        if (isAutoReveal && (!this.treeView.visible || !this.autoReveal)) {
+            return;
+        }
+
+        const uri = getActiveTabUri();
+
+        if (uri) {
+            if (isAutoReveal) {
+                const matchesAutoRevealExclude =
+                    this.autoRevealExcludeGlobPatterns
+                        .map((pattern) => `${pattern}{,/**}`)
+                        .some((pattern) =>
+                            minimatch(uri.fsPath, pattern, {
+                                dot: true
+                            })
+                        );
+
+                if (matchesAutoRevealExclude) {
+                    return;
                 }
             }
-        }, 10);
 
-        // We add this just as a failsafe mechanism in case the entry never gets
-        // selected for whatever reason
-        setTimeout(() => {
-            clearInterval(interval);
-        }, 3000);
-    }
-
-    private toggleGitIgnoredFiles(): void {
-        this.treeDataProvider.toggleGitIgnoredFiles();
-        this.treeDataProvider.refresh();
-    }
-
-    private toggleDirectoryOrOpenFile(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (itemId === undefined) {
-            return;
-        }
-        const path = this.treeDataProvider.getPathFromId(itemId);
-        if (path) {
-            const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
-            if (isCollapsible) {
-                if (this.treeDataProvider.isPathCollapsed(path)) {
-                    this.treeDataProvider.expandPath(path);
-                } else {
-                    this.treeDataProvider.collapsePath(path);
-                }
-                this.treeDataProvider.refresh();
-            } else {
-                this.openResource(vscode.Uri.file(path));
-            }
+            await this.revealFile(uri, focus);
         }
     }
 
-    private closeParentDirectory(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (itemId === undefined) {
-            return;
-        }
-        const parentEntry =
-            this.treeDataProvider.getEntryFromId(itemId)!.parent;
-        if (parentEntry === undefined) {
-            vscode.window.showErrorMessage(
-                "Cannot close parent of workspace directory!"
+    private async toggleDirectoryOrOpenFile(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+
+        if (!entry.isFolder) {
+            await vscode.commands.executeCommand(
+                "vscode.open",
+                entry.resourceUri
             );
-            return;
-        }
-        const parentPath = this.treeDataProvider.getPathFromId(parentEntry.id)!;
-        this.treeDataProvider.collapsePath(parentPath);
-        this.treeDataProvider.refresh();
-    }
-
-    private expandDirectory(letters: string, levelString: string): void {
-        const itemId = lettersToNumber(letters);
-        if (itemId === undefined) {
-            return;
-        }
-        const path = this.treeDataProvider.getPathFromId(itemId)!;
-        const level = parseInt(levelString);
-        const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
-        if (!isCollapsible) {
-            vscode.window.showErrorMessage(
-                "This commands expects a directory but you picked a file!"
-            );
-            return;
-        }
-
-        if (!this.treeDataProvider.isPathExpanded(path)) {
-            this.treeDataProvider.expandPath(path);
-        }
-        for (const directory of getDirectories(path)) {
-            if (directory.level >= level) {
-                this.treeDataProvider.collapsePath(directory.path);
-            } else if (!this.treeDataProvider.isPathExpanded(directory.path)) {
-                this.treeDataProvider.expandPath(directory.path);
-            }
-        }
-        this.treeDataProvider.refresh();
-    }
-
-    private collapseRoot(): void {
-        const workspacePath = vscode.workspace.workspaceFolders![0].uri.fsPath;
-        for (const directory of getDirectories(workspacePath)) {
-            if (directory.level === 0) {
-                this.treeDataProvider.collapsePath(directory.path);
-            }
-        }
-        this.treeDataProvider.refresh();
-    }
-
-    private openFile(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (!itemId) {
-            return;
-        }
-        const path = this.treeDataProvider.getPathFromId(itemId);
-        if (path) {
-            const isCollapsible = this.treeDataProvider.isPathCollapsible(path);
-            if (isCollapsible) {
-                vscode.window.showErrorMessage(
-                    "This commands expects a file but you picked a directory!"
-                );
-                return;
-            }
-            this.openResource(vscode.Uri.file(path));
-        }
-    }
-
-    private renameFile(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (!itemId) {
-            return;
-        }
-        const path = this.treeDataProvider.getPathFromId(itemId);
-        if (path) {
-            vscode.commands.executeCommand(
-                "fileutils.renameFile",
-                vscode.Uri.file(path)
-            );
-        }
-    }
-
-    private moveFile(from: string, to: string | undefined): void {
-        const fromId = lettersToNumber(from);
-        if (!fromId) {
-            return;
-        }
-        const fromPath = this.treeDataProvider.getPathFromId(fromId);
-        if (fromPath === undefined) {
-            return;
-        }
-        const fileName = path.basename(fromPath);
-        if (to === undefined) {
-            // move to workspace root
-            const workspaceFolder = vscode.workspace.getWorkspaceFolder(
-                vscode.Uri.file(fromPath)
-            );
-            if (workspaceFolder) {
-                const newPath = path.join(workspaceFolder.uri.fsPath, fileName);
-                fs.renameSync(fromPath, newPath);
-            }
+            await this.treeView.reveal(entry);
+        } else if (
+            entry.collapsibleState === vscode.TreeItemCollapsibleState.Collapsed
+        ) {
+            await this.treeView.reveal(entry, { expand: 1 });
         } else {
-            const toId = lettersToNumber(to);
-            if (!toId) {
-                return;
-            }
-            const toPath = this.treeDataProvider.getPathFromId(toId);
-            if (!toPath) {
-                return;
-            }
-            const isCollapsible =
-                this.treeDataProvider.isPathCollapsible(toPath);
-            let newPath;
-            if (isCollapsible) {
-                newPath = path.join(toPath, fileName);
-            } else {
-                newPath = path.join(path.dirname(toPath), fileName);
-            }
-            fs.renameSync(fromPath, newPath);
+            await this.collapseEntry(entry);
         }
     }
 
-    private createFile(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (!itemId) {
-            return;
-        }
-        const itemPath = this.treeDataProvider.getPathFromId(itemId);
-        if (itemPath) {
-            const isCollapsible =
-                this.treeDataProvider.isPathCollapsible(itemPath);
-            let directoryPath: string;
-            if (isCollapsible) {
-                directoryPath = itemPath;
-            } else {
-                directoryPath = path.dirname(itemPath);
-            }
-            vscode.window
-                .showInputBox({
-                    prompt: `Creating file in directory ${path.basename(
-                        directoryPath
-                    )}. Enter file name! End the file name with a slash to create a folder.`
-                })
-                .then((fileName) => {
-                    if (fileName) {
-                        if (fileName[fileName.length - 1] !== "/") {
-                            let filePath = path.join(directoryPath, fileName);
-                            if (fs.existsSync(filePath)) {
-                                vscode.window.showErrorMessage(
-                                    "File already exists!"
-                                );
-                                return;
-                            }
-                            fs.writeFileSync(filePath, "");
-                            this.openResource(vscode.Uri.file(filePath));
-                        } else {
-                            const result = fileName.substring(
-                                0,
-                                fileName.length - 1
-                            );
-                            let dirPath = path.join(directoryPath, result);
-                            fs.mkdirSync(dirPath);
-                            this.treeDataProvider.expandPath(dirPath);
-                            this.treeDataProvider.refresh();
-                        }
-                    }
-                });
+    private async closeParentDirectory(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+
+        if (entry.parent) {
+            await this.collapseEntry(entry.parent);
         }
     }
 
-    private select(letters: string): void {
-        const itemId = lettersToNumber(letters);
-        if (!itemId) {
+    private async expandDirectory(hint: string, level: number) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        this.treeDataProvider.preExpandToLevel(entry, level);
+
+        if (level === 0) {
+            await this.collapseEntry(entry);
+            this.treeDataProvider.refresh(entry.parent);
             return;
         }
-        const entry = this.treeDataProvider.getEntryFromId(itemId)!;
-        this.treeView.reveal(entry, {
-            focus: true
+
+        const directoriesToExpand = await getDescendantFolders(
+            entry.resourceUri,
+            level - 1
+        );
+        this.treeDataProvider.addFoldersToExpand(directoriesToExpand);
+
+        // This is necessary in case the target entry is collapsed
+        await this.treeView.reveal(entry, { expand: 1 });
+
+        this.treeDataProvider.refresh(entry);
+    }
+
+    private async collapseRoot() {
+        // We need to get any entry to be able to use "list.collapseAll"
+        const entry = await this.treeDataProvider.getEntryFromHint("a");
+
+        if (entry) {
+            await this.treeView.reveal(entry, { focus: true });
+            await vscode.commands.executeCommand("list.collapseAll");
+            await vscode.commands.executeCommand(
+                "workbench.action.focusActiveEditorGroup"
+            );
+        }
+
+        this.treeDataProvider.postCollapseRoot();
+    }
+
+    private async openFile(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+
+        if (entry.isFolder) {
+            await this.treeView.reveal(entry, { expand: true });
+        } else {
+            await this.openResource(entry.resourceUri);
+            await this.treeView.reveal(entry);
+        }
+    }
+
+    private async renameFile(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        await this.treeView.reveal(entry);
+
+        await vscode.commands.executeCommand(
+            "fileutils.renameFile",
+            vscode.Uri.file(entry.resourceUri.fsPath)
+        );
+
+        this.treeDataProvider.refresh(entry.parent);
+    }
+
+    private async moveFile(fromHint: string, toHint: string | undefined) {
+        const fromEntry = await this.treeDataProvider.getEntryFromHint(
+            fromHint
+        );
+        const toEntry = toHint
+            ? await this.treeDataProvider.getEntryFromHint(toHint)
+            : undefined;
+
+        // We first select the entry to move for visual feedback
+        await this.treeView.reveal(fromEntry);
+        await sleep(100);
+
+        const previousPath = fromEntry.resourceUri.fsPath;
+        const fileName = path.basename(previousPath);
+
+        // We are sure workspaceFolder will be defined as only entries within a
+        // workspace have hints and if the hint doesn't have an associated entry
+        // we throw an exception in getEntryFromHint
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+            fromEntry.resourceUri
+        )!;
+
+        let newUri: vscode.Uri;
+
+        if (toEntry?.isFolder) {
+            newUri = vscode.Uri.joinPath(toEntry.resourceUri, fileName);
+        } else if (!toEntry || !toEntry.parent) {
+            newUri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+        } else {
+            newUri = vscode.Uri.joinPath(toEntry.parent!.resourceUri, fileName);
+        }
+
+        if (await exists(newUri)) {
+            throw new Error(
+                "File or folder with the same name in the destination folder"
+            );
+        }
+
+        await vscode.workspace.fs.rename(fromEntry.resourceUri, newUri);
+
+        await this.expandToResource(newUri);
+        const newEntry = await this.treeDataProvider.getEntryFromPath(
+            newUri.fsPath
+        );
+
+        if (newEntry) {
+            await this.treeView.reveal(newEntry);
+        }
+    }
+
+    private async createFile(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+
+        const directoryUri = entry.isFolder
+            ? entry.resourceUri
+            : vscode.Uri.file(path.dirname(entry.resourceUri.fsPath));
+
+        const filename = await vscode.window.showInputBox({
+            prompt: `Creating file in directory ${path.basename(
+                directoryUri.fsPath
+            )}. Enter file name! End the file name with a slash to create a folder.`
         });
+
+        if (!filename) {
+            return;
+        }
+
+        if (filename.endsWith("/")) {
+            const folderName = filename.slice(0, -1);
+            const dirUri = vscode.Uri.joinPath(directoryUri, folderName);
+
+            if (await exists(dirUri)) {
+                throw new Error("Folder already exists!");
+            }
+
+            await vscode.workspace.fs.createDirectory(dirUri);
+        } else {
+            const fileUri = vscode.Uri.joinPath(directoryUri, filename);
+
+            if (await exists(fileUri)) {
+                throw new Error("File already exists!");
+            }
+
+            await vscode.workspace.fs.writeFile(fileUri, new Uint8Array());
+            await this.openResource(fileUri);
+        }
     }
 
-    private async deleteFile(letters: string): Promise<void> {
-        const itemId = lettersToNumber(letters);
-        if (!itemId) {
-            return;
-        }
-        const path = this.treeDataProvider.getPathFromId(itemId);
-        if (!path) {
-            return;
-        }
+    private async select(hint: string) {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        await this.treeView.reveal(entry, { focus: true });
+    }
+
+    private async deleteFile(hint: string): Promise<void> {
+        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        await this.treeView.reveal(entry);
+
         const selection = await vscode.window.showInformationMessage(
-            `Are you sure you want to delete ${path}?`,
+            `Are you sure you want to delete ${entry.resourceUri.fsPath}?`,
             { modal: true },
             "Yes",
             "No"
         );
-        if (selection === "Yes") {
-            await trash.default(path);
 
-            this.treeDataProvider.deletePathFromCollapsibleStateMap(path);
-            this.treeDataProvider.refresh();
+        if (selection === "Yes") {
+            await vscode.workspace.fs.delete(entry.resourceUri, {
+                useTrash: true
+            });
         }
     }
 }
