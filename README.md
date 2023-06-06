@@ -37,7 +37,7 @@ Apart from the settings declared by this extension there are other settings that
 
 ## Talon Setup
 
-- An example talon file can be found [here](./tree.talon)
+- An example talon file can be found and cloned from [here](https://github.com/paul-schaaf/talon-filetree-commands)
 
 ## Known Issues
 
