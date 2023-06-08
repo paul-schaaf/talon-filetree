@@ -817,10 +817,17 @@ export class FileExplorer {
             ? entry.resourceUri
             : vscode.Uri.file(path.dirname(entry.resourceUri.fsPath));
 
+        const directoryEntry = await this.treeDataProvider.getEntryFromPath(
+            directoryUri.fsPath
+        );
+        if (directoryEntry) {
+            await this.treeView.reveal(directoryEntry);
+        }
+
         const filename = await vscode.window.showInputBox({
-            prompt: `Creating file in directory ${path.basename(
+            prompt: `Creating file in directory "${path.basename(
                 directoryUri.fsPath
-            )}. Enter file name! End the file name with a slash to create a folder.`
+            )}". Enter file name! End the file name with a slash to create a folder.`
         });
 
         if (!filename) {
