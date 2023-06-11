@@ -866,6 +866,7 @@ export class FileExplorer {
 
         if (selection === "Yes") {
             await vscode.workspace.fs.delete(entry.resourceUri, {
+                recursive: true,
                 useTrash: true
             });
         }
