@@ -492,8 +492,12 @@ export class FileExplorer {
 
         context.subscriptions.push(this.treeView);
 
-        this.revealCurrentFile(true).catch((error) => {
-            console.error(error);
+        this.treeView.onDidChangeVisibility((event) => {
+            if (event.visible) {
+                this.revealCurrentFile(true).catch((error) => {
+                    console.error(error);
+                });
+            }
         });
 
         vscode.commands.registerCommand(
