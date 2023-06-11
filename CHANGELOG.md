@@ -1,3 +1,11 @@
+## 0.6.1 [2023-06-11]
+
+All changes in this release thanks to PRs by [david-tejada](https://github.com/david-tejada)
+
+- Reveal current file on tree view visibility change
+- Select directory where new file/folder will be created
+- You can now delete non empty directories
+
 ## 0.6.0 [2023-06-06]
 
 All changes in this release thanks to PR by [david-tejada](https://github.com/david-tejada)
