@@ -1,3 +1,8 @@
+## 0.6.2 [2023-06-21]
+
+- fix bug where emoji letters wouldn't show beyond 26 items (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada))
+- hints are now lowercase letters by default (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada)) 
+
 ## 0.6.1 [2023-06-11]
 
 All changes in this release thanks to PRs by [david-tejada](https://github.com/david-tejada)
