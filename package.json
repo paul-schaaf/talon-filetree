@@ -22,11 +22,11 @@
             "properties": {
                 "talon-filetree.letterStyling": {
                     "type": "string",
-                    "default": "emoji",
+                    "default": "lowercase",
                     "enum": [
-                        "emoji",
                         "lowercase",
-                        "uppercase"
+                        "uppercase",
+                        "emoji"
                     ]
                 }
             }
