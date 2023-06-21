@@ -49,7 +49,10 @@ updateLetterStyling();
 export function getDecoratedHint(hint: string) {
     switch (letterStyling) {
         case "emoji":
-            return letterToEmojiMap.get(hint);
+            return hint
+                .split("")
+                .map((char) => letterToEmojiMap.get(char))
+                .join("");
 
         case "uppercase":
             return hint.toUpperCase();
