@@ -1,4 +1,6 @@
+import path = require("path");
 import * as vscode from "vscode";
+import assertNever from "assert-never";
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz";
 const emojiLetters = [
@@ -34,19 +36,25 @@ const letterToEmojiMap = new Map(
     [...alphabet].map((letter, index) => [letter, emojiLetters[index]])
 );
 
-export type LetterStyling = "emoji" | "lowercase" | "uppercase";
+type LetterStyling = "emoji" | "lowercase" | "uppercase";
+type HintPosition = "left" | "right";
+type HintSeparator = "brackets" | "pipe" | "hyphen" | "colon" | "spaces";
 
 let config: vscode.WorkspaceConfiguration;
 let letterStyling: LetterStyling;
+let hintPosition: HintPosition;
+let hintSeparator: HintSeparator;
 
-export function updateLetterStyling() {
+export function updateHintSettings() {
     config = vscode.workspace.getConfiguration("talon-filetree");
     letterStyling = config.get("letterStyling") as LetterStyling;
+    hintPosition = config.get("hintPosition") as HintPosition;
+    hintSeparator = config.get("hintSeparator") as HintSeparator;
 }
 
-updateLetterStyling();
+updateHintSettings();
 
-export function getDecoratedHint(hint: string) {
+function getDecoratedHint(hint: string) {
     switch (letterStyling) {
         case "emoji":
             return letterToEmojiMap.get(hint);
@@ -60,6 +68,33 @@ export function getDecoratedHint(hint: string) {
         default:
             break;
     }
+}
+
+export function getDescriptionAndLabel(uri: vscode.Uri, hint: string) {
+    const decoratedHint = getDecoratedHint(hint);
+
+    if (hintPosition === "right") {
+        return { description: decoratedHint };
+    }
+
+    const filename = path.basename(uri.fsPath);
+
+    switch (hintSeparator) {
+        case "brackets":
+            return { label: `[${decoratedHint}] ${filename}` };
+        case "pipe":
+            return { label: `${decoratedHint} | ${filename}` };
+        case "hyphen":
+            return { label: `${decoratedHint} - ${filename}` };
+        case "colon":
+            return { label: `${decoratedHint}: ${filename}` };
+        case "spaces":
+            return { label: `${decoratedHint}  ${filename}` };
+        default:
+            break;
+    }
+
+    return assertNever(hintSeparator);
 }
 
 export async function sleep(ms: number) {
