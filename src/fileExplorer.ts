@@ -8,10 +8,10 @@ import {
     getGitIgnored
 } from "./fileUtils";
 import {
-    getDecoratedHint,
+    getDescriptionAndLabel,
     sleep,
     traverseTree,
-    updateLetterStyling
+    updateHintSettings
 } from "./utils";
 import { minimatch } from "minimatch";
 
@@ -399,8 +399,14 @@ class Entry extends vscode.TreeItem {
     ) {
         super(resourceUri, collapsibleState);
         if (hint) {
-            this.description = getDecoratedHint(hint);
+            const { label, description } = getDescriptionAndLabel(
+                resourceUri,
+                hint
+            );
+            this.description = description;
+            this.label = label;
         }
+
         this.resourceUri = resourceUri;
         this.type = type;
         this.parent = parent;
@@ -462,9 +468,13 @@ export class FileExplorer {
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration((event) => {
                 if (
-                    event.affectsConfiguration("talon-filetree.letterStyling")
+                    event.affectsConfiguration(
+                        "talon-filetree.letterStyling"
+                    ) ||
+                    event.affectsConfiguration("talon-filetree.hintPosition") ||
+                    event.affectsConfiguration("talon-filetree.hintSeparator")
                 ) {
-                    updateLetterStyling();
+                    updateHintSettings();
                     this.treeDataProvider.hintRefresh();
                 }
 

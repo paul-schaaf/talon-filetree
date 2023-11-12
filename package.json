@@ -3,7 +3,7 @@
     "displayName": "talon-filetree",
     "publisher": "PaulSchaaf",
     "description": "An extension for navigating and manipulating the file tree quickly by voice",
-    "version": "0.6.2",
+    "version": "0.6.3",
     "repository": {
         "type": "git",
         "url": "https://github.com/paul-schaaf/talon-filetree"
@@ -27,6 +27,33 @@
                         "lowercase",
                         "uppercase",
                         "emoji"
+                    ]
+                },
+                "talon-filetree.hintPosition": {
+                    "type": "string",
+                    "default": "right",
+                    "enum": [
+                        "left",
+                        "right"
+                    ]
+                },
+                "talon-filetree.hintSeparator": {
+                    "type": "string",
+                    "default": "brackets",
+                    "description": "Characters to separate the hint from the file or folder name (only applies when hints are positioned to the left)",
+                    "enum": [
+                        "brackets",
+                        "pipe",
+                        "hyphen",
+                        "colon",
+                        "spaces"
+                    ],
+                    "enumDescriptions": [
+                        "[a] file.ext",
+                        "a | file.ext",
+                        "a - file.ext",
+                        "a: file.text",
+                        "a file.text"
                     ]
                 }
             }
@@ -133,6 +160,7 @@
         "sleistner.vscode-fileutils"
     ],
     "dependencies": {
+        "assert-never": "^1.2.1",
         "lodash": "^4.17.21",
         "minimatch": "^9.0.1",
         "simple-git": "^3.17.0"

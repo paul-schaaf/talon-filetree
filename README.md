@@ -24,7 +24,9 @@ Creates a new file tree view that can be used with voice commands.
 
 ### Extension Settings
 
-- Hints are displayed as emojis to differentiate them from file names. This can be changed in the settings.
+- `talon-filetree.letterStyling`: Select the style of the hints between `lowercase`, `uppercase` or `emoji`.
+- `talon-filetree.hintPosition`: You can select to place the hints to the left or the right of the file name.
+- `talon-filetree.hintSeparator`: Select the symbols to separate the hint from the file name (only applies when hints are positioned to the left).
 
 ### Other Settings
 
