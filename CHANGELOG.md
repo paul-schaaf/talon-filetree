@@ -1,3 +1,7 @@
+## 0.6.3 [2023-11-12]
+
+- hints can now be displayed in front of file names (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/29) by [david-tejada](https://github.com/david-tejada)). This can be turned on in the settings. This feature was added so that hints are visible regardless of filename length.
+
 ## 0.6.2 [2023-06-21]
 
 - fix bug where emoji letters wouldn't show beyond 26 items (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada))
