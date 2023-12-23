@@ -133,13 +133,20 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
     async getEntryFromPath(path: string): Promise<Entry | undefined> {
         return new Promise((resolve) => {
+            // We first check if the entry is available and in that case resolve.
+            const entry = this.pathEntryMap.get(path);
+
+            if (entry) {
+                resolve(entry);
+            }
+
+            // If the entry is not available, resolve right away in cases when
+            // we know there won't be an entry for the given path.
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(
                 vscode.Uri.file(path)
             );
             const workspaceFolders = vscode.workspace.workspaceFolders;
 
-            // Resolve right away in cases when we know there won't be an entry
-            // for the given path.
             if (
                 !workspaceFolder ||
                 (workspaceFolder.uri.fsPath === path &&
@@ -148,6 +155,8 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 resolve(undefined);
             }
 
+            // For all other cases poll every 20ms until the entry is ready with
+            // a 1 second timeout.
             let timedOut = false;
 
             const timeout = setTimeout(() => {
