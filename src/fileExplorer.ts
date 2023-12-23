@@ -133,6 +133,21 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
     async getEntryFromPath(path: string): Promise<Entry | undefined> {
         return new Promise((resolve) => {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+                vscode.Uri.file(path)
+            );
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+
+            // Resolve right away in cases when we know there won't be an entry
+            // for the given path.
+            if (
+                !workspaceFolder ||
+                (workspaceFolder.uri.fsPath === path &&
+                    workspaceFolders?.length === 1)
+            ) {
+                resolve(undefined);
+            }
+
             let timedOut = false;
 
             const timeout = setTimeout(() => {
