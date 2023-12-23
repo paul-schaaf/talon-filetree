@@ -827,15 +827,16 @@ export class FileExplorer {
     private async createFile(hint: string) {
         const entry = await this.treeDataProvider.getEntryFromHint(hint);
 
-        const directoryUri = entry.isFolder
-            ? entry.resourceUri
-            : vscode.Uri.file(path.dirname(entry.resourceUri.fsPath));
+        const directoryEntry = entry.isFolder ? entry : entry.parent;
+        const directoryUri =
+            directoryEntry?.resourceUri ??
+            vscode.workspace.getWorkspaceFolder(entry.resourceUri)!.uri;
 
-        const directoryEntry = await this.treeDataProvider.getEntryFromPath(
-            directoryUri.fsPath
-        );
         if (directoryEntry) {
             await this.treeView.reveal(directoryEntry);
+        } else {
+            // Select the target entry since there is no parent folder to select
+            await this.treeView.reveal(entry, { select: true, focus: false });
         }
 
         const filename = await vscode.window.showInputBox({
