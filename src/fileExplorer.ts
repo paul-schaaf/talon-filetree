@@ -86,9 +86,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             if (parentPath === workspaceFolder.uri.fsPath) {
                 this.refresh();
             } else {
-                const parentEntry = await this.getEntryFromPathWithRetry(
-                    parentPath
-                );
+                const parentEntry = await this.getEntryFromPath(parentPath);
 
                 // If there is no parentEntry it might be because it is
                 // collapsed or git ignored
@@ -109,9 +107,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             if (parentPath === workspaceFolder.uri.fsPath) {
                 this.refresh();
             } else {
-                const parentEntry = await this.getEntryFromPathWithRetry(
-                    parentPath
-                );
+                const parentEntry = await this.getEntryFromPath(parentPath);
 
                 // If there is no parentEntry it might be because it is
                 // collapsed or git ignored
@@ -135,7 +131,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
         return watcher;
     }
 
-    async getEntryFromPathWithRetry(path: string): Promise<Entry | undefined> {
+    async getEntryFromPath(path: string): Promise<Entry | undefined> {
         return new Promise((resolve) => {
             let timedOut = false;
 
@@ -145,7 +141,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             }, 1000);
 
             const getEntry = () => {
-                const entry = this.getEntryFromPath(path);
+                const entry = this.pathEntryMap.get(path);
                 if (!entry && !timedOut) {
                     setTimeout(() => {
                         getEntry();
@@ -158,10 +154,6 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
             getEntry();
         });
-    }
-
-    getEntryFromPath(path: string): Entry | undefined {
-        return this.pathEntryMap.get(path);
     }
 
     getEntryFromHint(hint: string) {
@@ -229,7 +221,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     }
 
     async removeEntry(uri: vscode.Uri, hard = true) {
-        const entryToRemove = await this.getEntryFromPathWithRetry(uri.fsPath);
+        const entryToRemove = await this.getEntryFromPath(uri.fsPath);
 
         if (!entryToRemove) {
             return;
@@ -646,7 +638,7 @@ export class FileExplorer {
         }
 
         for (const directory of directoriesToExpand.reverse()) {
-            const entry = await this.treeDataProvider.getEntryFromPathWithRetry(
+            const entry = await this.treeDataProvider.getEntryFromPath(
                 directory
             );
             if (entry) {
@@ -658,7 +650,7 @@ export class FileExplorer {
     private async revealFile(uri: vscode.Uri, focus = false) {
         try {
             await this.expandToResource(uri);
-            const entry = await this.treeDataProvider.getEntryFromPathWithRetry(
+            const entry = await this.treeDataProvider.getEntryFromPath(
                 uri.fsPath
             );
             if (entry) {
@@ -823,7 +815,7 @@ export class FileExplorer {
         await vscode.workspace.fs.rename(fromEntry.resourceUri, newUri);
 
         await this.expandToResource(newUri);
-        const newEntry = await this.treeDataProvider.getEntryFromPathWithRetry(
+        const newEntry = await this.treeDataProvider.getEntryFromPath(
             newUri.fsPath
         );
 
@@ -838,7 +830,8 @@ export class FileExplorer {
         const directoryUri = entry.isFolder
             ? entry.resourceUri
             : vscode.Uri.file(path.dirname(entry.resourceUri.fsPath));
-        const directoryEntry = this.treeDataProvider.getEntryFromPath(
+
+        const directoryEntry = await this.treeDataProvider.getEntryFromPath(
             directoryUri.fsPath
         );
         if (directoryEntry) {
