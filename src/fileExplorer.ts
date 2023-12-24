@@ -133,6 +133,30 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
     async getEntryFromPath(path: string): Promise<Entry | undefined> {
         return new Promise((resolve) => {
+            // We first check if the entry is available and in that case resolve.
+            const entry = this.pathEntryMap.get(path);
+
+            if (entry) {
+                return resolve(entry);
+            }
+
+            // If the entry is not available, resolve right away in cases when
+            // we know there won't be an entry for the given path.
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(
+                vscode.Uri.file(path)
+            );
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+
+            if (
+                !workspaceFolder ||
+                (workspaceFolder.uri.fsPath === path &&
+                    workspaceFolders?.length === 1)
+            ) {
+                return resolve(undefined);
+            }
+
+            // For all other cases poll every 20ms until the entry is ready with
+            // a 1 second timeout.
             let timedOut = false;
 
             const timeout = setTimeout(() => {
@@ -827,15 +851,16 @@ export class FileExplorer {
     private async createFile(hint: string) {
         const entry = this.treeDataProvider.getEntryFromHint(hint);
 
-        const directoryUri = entry.isFolder
-            ? entry.resourceUri
-            : vscode.Uri.file(path.dirname(entry.resourceUri.fsPath));
+        const directoryEntry = entry.isFolder ? entry : entry.parent;
+        const directoryUri =
+            directoryEntry?.resourceUri ??
+            vscode.workspace.getWorkspaceFolder(entry.resourceUri)!.uri;
 
-        const directoryEntry = await this.treeDataProvider.getEntryFromPath(
-            directoryUri.fsPath
-        );
         if (directoryEntry) {
             await this.treeView.reveal(directoryEntry);
+        } else {
+            // Select the target entry since there is no parent folder to select
+            await this.treeView.reveal(entry, { select: true, focus: false });
         }
 
         const filename = await vscode.window.showInputBox({
