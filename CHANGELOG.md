@@ -1,3 +1,7 @@
+## 0.6.4 [2023-12-24]
+
+- creating files is faster now (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/31) by [david-tejada](https://github.com/david-tejada)).
+
 ## 0.6.3 [2023-11-12]
 
 - hints can now be displayed in front of file names (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/29) by [david-tejada](https://github.com/david-tejada)). This can be turned on in the settings. This feature was added so that hints are visible regardless of filename length.
