@@ -137,7 +137,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
             const entry = this.pathEntryMap.get(path);
 
             if (entry) {
-                resolve(entry);
+                return resolve(entry);
             }
 
             // If the entry is not available, resolve right away in cases when
@@ -152,7 +152,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
                 (workspaceFolder.uri.fsPath === path &&
                     workspaceFolders?.length === 1)
             ) {
-                resolve(undefined);
+                return resolve(undefined);
             }
 
             // For all other cases poll every 20ms until the entry is ready with
