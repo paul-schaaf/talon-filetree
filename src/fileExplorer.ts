@@ -156,7 +156,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
         });
     }
 
-    async getEntryFromHint(hint: string) {
+    getEntryFromHint(hint: string) {
         const entry = this.hintEntryMap.get(hint);
         if (!entry) {
             throw new Error(`No entry for hint '${hint}'`);
@@ -689,7 +689,7 @@ export class FileExplorer {
     }
 
     private async toggleDirectoryOrOpenFile(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
 
         if (!entry.isFolder) {
             await vscode.commands.executeCommand(
@@ -707,7 +707,7 @@ export class FileExplorer {
     }
 
     private async closeParentDirectory(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
 
         if (entry.parent) {
             await this.collapseEntry(entry.parent);
@@ -715,7 +715,7 @@ export class FileExplorer {
     }
 
     private async expandDirectory(hint: string, level: number) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
         this.treeDataProvider.preExpandToLevel(entry, level);
 
         if (level === 0) {
@@ -738,7 +738,7 @@ export class FileExplorer {
 
     private async collapseRoot() {
         // We need to get any entry to be able to use "list.collapseAll"
-        const entry = await this.treeDataProvider.getEntryFromHint("a");
+        const entry = this.treeDataProvider.getEntryFromHint("a");
 
         if (entry) {
             await this.treeView.reveal(entry, { focus: true });
@@ -752,7 +752,7 @@ export class FileExplorer {
     }
 
     private async openFile(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
 
         if (entry.isFolder) {
             await this.treeView.reveal(entry, { expand: true });
@@ -763,7 +763,7 @@ export class FileExplorer {
     }
 
     private async renameFile(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
         await vscode.commands.executeCommand(
@@ -825,7 +825,7 @@ export class FileExplorer {
     }
 
     private async createFile(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
 
         const directoryUri = entry.isFolder
             ? entry.resourceUri
@@ -870,12 +870,12 @@ export class FileExplorer {
     }
 
     private async select(hint: string) {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry, { focus: true });
     }
 
     private async deleteFile(hint: string): Promise<void> {
-        const entry = await this.treeDataProvider.getEntryFromHint(hint);
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
         const selection = await vscode.window.showInformationMessage(
