@@ -161,7 +161,6 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
             const timeout = setTimeout(() => {
                 timedOut = true;
-                resolve(undefined);
             }, 1000);
 
             const getEntry = () => {
