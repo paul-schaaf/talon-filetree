@@ -1,3 +1,7 @@
+## 0.6.5 [2023-12-24]
+
+- removes unnecessary resolve statement ([PR](https://github.com/paul-schaaf/talon-filetree/pull/33))
+
 ## 0.6.4 [2023-12-24]
 
 - creating files is faster now (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/31) by [david-tejada](https://github.com/david-tejada)).
