@@ -830,12 +830,26 @@ export class FileExplorer {
         }
 
         if (await exists(newUri)) {
-            throw new Error(
-                "File or folder with the same name in the destination folder"
+            const replace = await vscode.window.showInformationMessage(
+                `A file or folder with the name '${fileName}' already exists in the destination folder. Do you want to replace it?`,
+                { modal: true, detail: "This action is irreversible!" },
+                "Replace"
             );
+
+            if (!replace) {
+                return;
+            }
         }
 
-        await vscode.workspace.fs.rename(fromEntry.resourceUri, newUri);
+        const edit = new vscode.WorkspaceEdit();
+        edit.renameFile(fromEntry.resourceUri, newUri, {
+            overwrite: true
+        });
+        const result = await vscode.workspace.applyEdit(edit);
+
+        if (!result) {
+            throw new Error(`Failed to move file or folder.`);
+        }
 
         await this.expandToResource(newUri);
         const newEntry = await this.treeDataProvider.getEntryFromPath(
