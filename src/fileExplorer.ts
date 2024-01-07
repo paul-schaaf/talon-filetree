@@ -830,13 +830,13 @@ export class FileExplorer {
         }
 
         if (await exists(newUri)) {
-            const replace = await vscode.window.showInformationMessage(
+            const confirmation = await vscode.window.showInformationMessage(
                 `A file or folder with the name '${fileName}' already exists in the destination folder. Do you want to replace it?`,
                 { modal: true, detail: "This action is irreversible!" },
                 "Replace"
             );
 
-            if (!replace) {
+            if (!confirmation) {
                 return;
             }
         }
