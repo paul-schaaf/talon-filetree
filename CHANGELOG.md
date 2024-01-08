@@ -1,3 +1,10 @@
+## 0.6.6 [2024-01-08]
+
+- Fix buggy behavior when moving files with unsaved changes (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/34) by [david-tejada](https://github.com/david-tejada)).
+- Make undo/redo of file moves possible (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/34) by [david-tejada](https://github.com/david-tejada)).
+- Make undo/redo of edits possible after moving files with open editors (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/34) by [david-tejada](https://github.com/david-tejada)).
+- Show confirmation modal when target file/folder exists. Behaving the same as the native explorer (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/34) by [david-tejada](https://github.com/david-tejada)).
+
 ## 0.6.5 [2023-12-24]
 
 - removes unnecessary resolve statement ([PR](https://github.com/paul-schaaf/talon-filetree/pull/33))
@@ -13,7 +20,7 @@
 ## 0.6.2 [2023-06-21]
 
 - fix bug where emoji letters wouldn't show beyond 26 items (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada))
-- hints are now lowercase letters by default (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada)) 
+- hints are now lowercase letters by default (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/23) by [david-tejada](https://github.com/david-tejada))
 
 ## 0.6.1 [2023-06-11]
 
