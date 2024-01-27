@@ -129,3 +129,21 @@ export function traverseTree<T extends { children?: T[] }>(
         }
     }
 }
+
+export function getTabUri(tab: vscode.Tab) {
+    const input = tab.input;
+    if (
+        input instanceof vscode.TabInputText ||
+        input instanceof vscode.TabInputCustom ||
+        input instanceof vscode.TabInputNotebook
+    ) {
+        return input.uri;
+    }
+
+    if (
+        input instanceof vscode.TabInputTextDiff ||
+        input instanceof vscode.TabInputNotebookDiff
+    ) {
+        return input.modified;
+    }
+}

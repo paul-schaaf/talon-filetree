@@ -1,14 +1,10 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { HintManager } from "./HintManager";
-import {
-    exists,
-    getActiveTabUri,
-    getDescendantFolders,
-    getGitIgnored
-} from "./fileUtils";
+import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
 import {
     getDescriptionAndLabel,
+    getTabUri,
     sleep,
     traverseTree,
     updateHintSettings
@@ -454,6 +450,13 @@ export class FileExplorer {
     private autoReveal: boolean;
     private autoRevealExcludeGlobPatterns = <string[]>[];
 
+    /**
+     * The `uri` of the active tab of the active group if the file belongs to
+     * the current workspace. Otherwise, the last file that was active in the
+     * current workspace.
+     * */
+    private workspaceActiveFileUri?: vscode.Uri;
+
     constructor(context: vscode.ExtensionContext) {
         this.treeDataProvider = new FileDataProvider(context);
 
@@ -477,14 +480,22 @@ export class FileExplorer {
         );
 
         context.subscriptions.push(
-            vscode.window.tabGroups.onDidChangeTabs(async () => {
-                await this.revealCurrentFile(true);
+            vscode.window.tabGroups.onDidChangeTabs(async (event) => {
+                const activeTab = event.changed.find((tab) => tab.isActive);
+                if (activeTab) {
+                    await this.handleActiveTabChange(activeTab);
+                }
             })
         );
 
         context.subscriptions.push(
-            vscode.window.tabGroups.onDidChangeTabGroups(async () => {
-                await this.revealCurrentFile(true);
+            vscode.window.tabGroups.onDidChangeTabGroups(async (event) => {
+                const activeTab = event.changed.find(
+                    (group) => group.isActive && group.activeTab
+                )?.activeTab;
+                if (activeTab) {
+                    await this.handleActiveTabChange(activeTab);
+                }
             })
         );
 
@@ -523,15 +534,17 @@ export class FileExplorer {
             await this.treeDataProvider.entryWasCollapsed(event.element);
         });
 
-        context.subscriptions.push(this.treeView);
-
-        this.treeView.onDidChangeVisibility((event) => {
+        this.treeView.onDidChangeVisibility(async (event) => {
             if (event.visible) {
-                this.revealCurrentFile(true).catch((error) => {
-                    console.error(error);
-                });
+                const activeTab =
+                    vscode.window.tabGroups.activeTabGroup.activeTab;
+                if (activeTab) {
+                    await this.handleActiveTabChange(activeTab);
+                }
             }
         });
+
+        context.subscriptions.push(this.treeView);
 
         vscode.commands.registerCommand(
             "talon-filetree.openResource",
@@ -603,10 +616,21 @@ export class FileExplorer {
         vscode.commands.registerCommand(
             "talon-filetree.revealCurrentFile",
             async () =>
-                this.showMessageIfError(async () =>
-                    this.revealCurrentFile(false, true)
-                )
+                this.showMessageIfError(async () => this.focusCurrentFile())
         );
+    }
+
+    private async handleActiveTabChange(activeTab: vscode.Tab) {
+        const uri = getTabUri(activeTab);
+
+        if (!uri || !vscode.workspace.getWorkspaceFolder(uri)) {
+            return;
+        }
+
+        if (uri !== this.workspaceActiveFileUri) {
+            this.workspaceActiveFileUri = uri;
+            await this.revealFile(uri, false, true);
+        }
     }
 
     private async showMessageIfError(f: () => Promise<void>) {
@@ -670,7 +694,29 @@ export class FileExplorer {
         }
     }
 
-    private async revealFile(uri: vscode.Uri, focus = false) {
+    private async revealFile(
+        uri: vscode.Uri,
+        focus = false,
+        isAutoReveal = false
+    ) {
+        if (isAutoReveal) {
+            if (!this.treeView.visible || !this.autoReveal) {
+                return;
+            }
+
+            const matchesAutoRevealExclude = this.autoRevealExcludeGlobPatterns
+                .map((pattern) => `${pattern}{,/**}`)
+                .some((pattern) =>
+                    minimatch(uri.fsPath, pattern, {
+                        dot: true
+                    })
+                );
+
+            if (matchesAutoRevealExclude) {
+                return;
+            }
+        }
+
         try {
             await this.expandToResource(uri);
             const entry = await this.treeDataProvider.getEntryFromPath(
@@ -684,31 +730,21 @@ export class FileExplorer {
         }
     }
 
-    private async revealCurrentFile(isAutoReveal = false, focus = false) {
-        if (isAutoReveal && (!this.treeView.visible || !this.autoReveal)) {
-            return;
+    private async focusCurrentFile() {
+        const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
+        if (!activeTab) {
+            throw new Error("There are no active tabs.");
         }
 
-        const uri = getActiveTabUri();
+        const uri = getTabUri(activeTab);
 
-        if (uri) {
-            if (isAutoReveal) {
-                const matchesAutoRevealExclude =
-                    this.autoRevealExcludeGlobPatterns
-                        .map((pattern) => `${pattern}{,/**}`)
-                        .some((pattern) =>
-                            minimatch(uri.fsPath, pattern, {
-                                dot: true
-                            })
-                        );
-
-                if (matchesAutoRevealExclude) {
-                    return;
-                }
-            }
-
-            await this.revealFile(uri, focus);
+        if (!uri || !vscode.workspace.getWorkspaceFolder(uri)) {
+            throw new Error(
+                "The active tab doesn't correspond to a file in the current workspace."
+            );
         }
+
+        await this.revealFile(uri, true);
     }
 
     private async toggleDirectoryOrOpenFile(hint: string) {
