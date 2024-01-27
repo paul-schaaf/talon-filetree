@@ -688,7 +688,7 @@ export class FileExplorer {
             const entry = await this.treeDataProvider.getEntryFromPath(
                 directory
             );
-            if (entry) {
+            if (entry && entry.collapsibleState === 1) {
                 await this.treeView.reveal(entry, { select: false, expand: 1 });
             }
         }
