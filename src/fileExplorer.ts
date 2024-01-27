@@ -449,13 +449,7 @@ export class FileExplorer {
 
     private autoReveal: boolean;
     private autoRevealExcludeGlobPatterns = <string[]>[];
-
-    /**
-     * The `uri` of the active tab of the active group if the file belongs to
-     * the current workspace. Otherwise, the last file that was active in the
-     * current workspace.
-     * */
-    private workspaceActiveFileUri?: vscode.Uri;
+    private lastActiveWorkspaceFileUri?: vscode.Uri;
 
     constructor(context: vscode.ExtensionContext) {
         this.treeDataProvider = new FileDataProvider(context);
@@ -627,8 +621,8 @@ export class FileExplorer {
             return;
         }
 
-        if (uri !== this.workspaceActiveFileUri) {
-            this.workspaceActiveFileUri = uri;
+        if (uri !== this.lastActiveWorkspaceFileUri) {
+            this.lastActiveWorkspaceFileUri = uri;
             await this.revealFile(uri, false, true);
         }
     }
