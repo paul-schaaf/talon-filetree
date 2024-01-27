@@ -272,7 +272,10 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
 
     addFoldersToExpand(folders: string[]) {
         for (const folder of folders) {
-            this.foldersToExpand.add(folder);
+            const entry = this.pathEntryMap.get(folder);
+            if (!entry || entry.collapsibleState === 1) {
+                this.foldersToExpand.add(folder);
+            }
         }
     }
 
@@ -656,16 +659,22 @@ export class FileExplorer {
         let currentPath = path.dirname(uri.fsPath);
 
         while (currentPath !== workspaceFolder.uri.fsPath) {
-            directoriesToExpand.push(currentPath);
+            directoriesToExpand.unshift(currentPath);
             currentPath = path.dirname(currentPath);
         }
 
-        for (const directory of directoriesToExpand.reverse()) {
+        this.treeDataProvider.addFoldersToExpand(directoriesToExpand);
+
+        for (const directory of directoriesToExpand) {
             const entry = await this.treeDataProvider.getEntryFromPath(
                 directory
             );
-            if (entry) {
-                await this.treeView.reveal(entry, { select: false, expand: 1 });
+
+            if (entry?.collapsibleState === 1) {
+                return this.treeView.reveal(entry, {
+                    select: false,
+                    expand: 1
+                });
             }
         }
     }
