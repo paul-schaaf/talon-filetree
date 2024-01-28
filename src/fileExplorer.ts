@@ -218,6 +218,7 @@ export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     // keep track of the element's collapsible state
     entryWasExpanded(entry: Entry) {
         entry.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+        this.foldersToExpand.delete(entry.resourceUri.fsPath);
     }
 
     async entryWasCollapsed(entry: Entry) {
