@@ -47,26 +47,3 @@ export async function getGitIgnored(root: string, paths: string[]) {
         return [];
     }
 }
-
-export function getActiveTabUri() {
-    // Using this instead of vscode.window.activeTextEditor so that it works
-    // with files that are not text, like images
-    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input as
-        | { uri?: vscode.Uri }
-        | { modified?: vscode.Uri }
-        | undefined;
-
-    if (!input) {
-        return undefined;
-    }
-
-    if ("uri" in input) {
-        return input.uri;
-    }
-
-    if ("modified" in input) {
-        return input.modified;
-    }
-
-    return undefined;
-}
