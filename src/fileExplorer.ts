@@ -963,14 +963,29 @@ export class FileExplorer {
         const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
-        const selection = await vscode.window.showInformationMessage(
-            `Are you sure you want to delete ${entry.resourceUri.fsPath}?`,
-            { modal: true },
-            "Yes",
-            "No"
+        const fileName = path.basename(entry.resourceUri.fsPath);
+        const document = vscode.workspace.textDocuments.find(
+            (td) => td.uri.fsPath === entry.resourceUri.fsPath
         );
 
-        if (selection === "Yes") {
+        const message = document?.isDirty
+            ? `You are deleting '${fileName}' with unsaved changes. Do you want to continue?`
+            : `Are you sure you want to delete '${fileName}'?`;
+
+        const detail = document?.isDirty
+            ? "Your changes will be lost if you don't save them."
+            : "You can restore this file from the Trash.";
+
+        const confirmation = await vscode.window.showInformationMessage(
+            message,
+            {
+                modal: true,
+                detail
+            },
+            "Move to Trash"
+        );
+
+        if (confirmation) {
             await vscode.workspace.fs.delete(entry.resourceUri, {
                 recursive: true,
                 useTrash: true
