@@ -1,3 +1,6 @@
+## 0.6.7 [2024-02-03]
+- Fix unnecessary reveals of files (thanks to PRs [35](https://github.com/paul-schaaf/talon-filetree/pull/35) and [36](https://github.com/paul-schaaf/talon-filetree/pull/36) by [david-tejada](https://github.com/david-tejada))
+
 ## 0.6.6 [2024-01-08]
 
 - Fix buggy behavior when moving files with unsaved changes (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/34) by [david-tejada](https://github.com/david-tejada)).
