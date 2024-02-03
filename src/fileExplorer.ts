@@ -449,7 +449,7 @@ export class FileExplorer {
 
     private autoReveal: boolean;
     private autoRevealExcludeGlobPatterns = <string[]>[];
-    private lastActiveWorkspaceFileUri?: vscode.Uri;
+    private lastActiveWorkspaceFilePath?: string;
 
     constructor(context: vscode.ExtensionContext) {
         this.treeDataProvider = new FileDataProvider(context);
@@ -621,8 +621,8 @@ export class FileExplorer {
             return;
         }
 
-        if (uri !== this.lastActiveWorkspaceFileUri) {
-            this.lastActiveWorkspaceFileUri = uri;
+        if (uri.fsPath !== this.lastActiveWorkspaceFilePath) {
+            this.lastActiveWorkspaceFilePath = uri.fsPath;
             await this.revealFile(uri, false, true);
         }
     }
