@@ -986,10 +986,12 @@ export class FileExplorer {
         );
 
         if (confirmation) {
-            await vscode.workspace.fs.delete(entry.resourceUri, {
-                recursive: true,
-                useTrash: true
-            });
+            const edit = new vscode.WorkspaceEdit();
+            edit.deleteFile(entry.resourceUri, { recursive: true });
+            const success = await vscode.workspace.applyEdit(edit);
+            if (!success) {
+                throw new Error(`Failed to delete file.`);
+            }
         }
     }
 }
