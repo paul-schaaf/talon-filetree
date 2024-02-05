@@ -1,15 +1,16 @@
-import * as vscode from "vscode";
+import { minimatch } from "minimatch";
 import * as path from "path";
+import * as vscode from "vscode";
 import { HintManager } from "./HintManager";
 import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
 import {
+    getDeleteMessage,
     getDescriptionAndLabel,
     getTabUri,
     sleep,
     traverseTree,
     updateHintSettings
 } from "./utils";
-import { minimatch } from "minimatch";
 
 export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly _onDidChangeTreeData: vscode.EventEmitter<
@@ -963,18 +964,10 @@ export class FileExplorer {
         const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
-        const fileName = path.basename(entry.resourceUri.fsPath);
-        const document = vscode.workspace.textDocuments.find(
-            (td) => td.uri.fsPath === entry.resourceUri.fsPath
+        const { message, detail } = getDeleteMessage(
+            entry.resourceUri,
+            entry.isFolder
         );
-
-        const message = document?.isDirty
-            ? `You are deleting '${fileName}' with unsaved changes. Do you want to continue?`
-            : `Are you sure you want to delete '${fileName}'?`;
-
-        const detail = document?.isDirty
-            ? "Your changes will be lost if you don't save them."
-            : "You can restore this file from the Trash.";
 
         const confirmation = await vscode.window.showInformationMessage(
             message,

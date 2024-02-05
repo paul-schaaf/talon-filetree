@@ -147,3 +147,47 @@ export function getTabUri(tab: vscode.Tab) {
         return input.modified;
     }
 }
+
+function getDeleteFolderMessage(uri: vscode.Uri) {
+    const fileName = path.basename(uri.fsPath);
+    const totalDirtyInFolder = vscode.workspace.textDocuments.filter(
+        (td) => td.isDirty && td.uri.fsPath.startsWith(uri.fsPath)
+    ).length;
+
+    if (totalDirtyInFolder > 0) {
+        return {
+            message: `You are deleting a folder '${fileName}' with unsaved changes in ${totalDirtyInFolder} ${
+                totalDirtyInFolder === 1 ? "file" : "files"
+            }. Do you want to continue?`,
+            detail: "Your changes will be lost if you don't save them."
+        };
+    }
+
+    return {
+        message: `Are you sure you want to delete '${fileName}' and its contents?`,
+        detail: "You can restore this file from the Trash."
+    };
+}
+
+function getDeleteFileMessage(uri: vscode.Uri) {
+    const fileName = path.basename(uri.fsPath);
+    const document = vscode.workspace.textDocuments.find(
+        (td) => td.uri.fsPath === uri.fsPath
+    );
+
+    if (document?.isDirty) {
+        return {
+            message: `You are deleting '${fileName}' with unsaved changes. Do you want to continue?`,
+            detail: "Your changes will be lost if you don't save them."
+        };
+    }
+
+    return {
+        message: `Are you sure you want to delete '${fileName}'?`,
+        detail: "You can restore this file from the Trash."
+    };
+}
+
+export function getDeleteMessage(uri: vscode.Uri, isFolder: boolean) {
+    return isFolder ? getDeleteFolderMessage(uri) : getDeleteFileMessage(uri);
+}
