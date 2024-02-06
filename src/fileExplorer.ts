@@ -7,6 +7,7 @@ import {
     getDeleteMessage,
     getDescriptionAndLabel,
     getTabUri,
+    shouldUseTrash,
     sleep,
     traverseTree,
     updateHintSettings
@@ -975,7 +976,7 @@ export class FileExplorer {
                 modal: true,
                 detail
             },
-            "Move to Trash"
+            shouldUseTrash() ? "Move to Trash" : "Delete"
         );
 
         if (confirmation) {

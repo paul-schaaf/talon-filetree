@@ -148,6 +148,12 @@ export function getTabUri(tab: vscode.Tab) {
     }
 }
 
+export function shouldUseTrash() {
+    return vscode.workspace
+        .getConfiguration("files")
+        .get("enableTrash") as boolean;
+}
+
 function getDeleteFolderMessage(uri: vscode.Uri) {
     const fileName = path.basename(uri.fsPath);
     const totalDirtyInFolder = vscode.workspace.textDocuments.filter(
@@ -163,9 +169,16 @@ function getDeleteFolderMessage(uri: vscode.Uri) {
         };
     }
 
+    if (shouldUseTrash()) {
+        return {
+            message: `Are you sure you want to delete '${fileName}' and its contents?`,
+            detail: "You can restore this file from the Trash."
+        };
+    }
+
     return {
-        message: `Are you sure you want to delete '${fileName}' and its contents?`,
-        detail: "You can restore this file from the Trash."
+        message: `Are you sure you want to permanently delete '${fileName}' and its contents?`,
+        detail: "This action is irreversible!"
     };
 }
 
@@ -182,9 +195,16 @@ function getDeleteFileMessage(uri: vscode.Uri) {
         };
     }
 
+    if (shouldUseTrash()) {
+        return {
+            message: `Are you sure you want to delete '${fileName}'?`,
+            detail: "You can restore this file from the Trash."
+        };
+    }
+
     return {
-        message: `Are you sure you want to delete '${fileName}'?`,
-        detail: "You can restore this file from the Trash."
+        message: `Are you sure you want to permanently delete '${fileName}'?`,
+        detail: "This action is irreversible!"
     };
 }
 
