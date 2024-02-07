@@ -148,10 +148,16 @@ export function getTabUri(tab: vscode.Tab) {
     }
 }
 
-export function shouldUseTrash() {
+function shouldUseTrash() {
     return vscode.workspace
         .getConfiguration("files")
         .get("enableTrash") as boolean;
+}
+
+function shouldConfirmDelete() {
+    return vscode.workspace
+        .getConfiguration("explorer")
+        .get("confirmDelete") as boolean;
 }
 
 function getDeleteFolderMessage(uri: vscode.Uri) {
@@ -170,10 +176,14 @@ function getDeleteFolderMessage(uri: vscode.Uri) {
     }
 
     if (shouldUseTrash()) {
-        return {
-            message: `Are you sure you want to delete '${fileName}' and its contents?`,
-            detail: "You can restore this file from the Trash."
-        };
+        if (shouldConfirmDelete()) {
+            return {
+                message: `Are you sure you want to delete '${fileName}' and its contents?`,
+                detail: "You can restore this file from the Trash."
+            };
+        }
+
+        return undefined;
     }
 
     return {
@@ -196,10 +206,14 @@ function getDeleteFileMessage(uri: vscode.Uri) {
     }
 
     if (shouldUseTrash()) {
-        return {
-            message: `Are you sure you want to delete '${fileName}'?`,
-            detail: "You can restore this file from the Trash."
-        };
+        if (shouldConfirmDelete()) {
+            return {
+                message: `Are you sure you want to delete '${fileName}'?`,
+                detail: "You can restore this file from the Trash."
+            };
+        }
+
+        return undefined;
     }
 
     return {
@@ -208,6 +222,26 @@ function getDeleteFileMessage(uri: vscode.Uri) {
     };
 }
 
-export function getDeleteMessage(uri: vscode.Uri, isFolder: boolean) {
-    return isFolder ? getDeleteFolderMessage(uri) : getDeleteFileMessage(uri);
+export async function confirmDeleteFile(uri: vscode.Uri) {
+    const stat = await vscode.workspace.fs.stat(uri);
+    const isFolder = stat.type === vscode.FileType.Directory;
+
+    const message = isFolder
+        ? getDeleteFolderMessage(uri)
+        : getDeleteFileMessage(uri);
+
+    if (!message) {
+        return true;
+    }
+
+    const confirmation = await vscode.window.showInformationMessage(
+        message.message,
+        {
+            modal: true,
+            detail: message.detail
+        },
+        shouldUseTrash() ? "Move to Trash" : "Delete"
+    );
+
+    return Boolean(confirmation);
 }

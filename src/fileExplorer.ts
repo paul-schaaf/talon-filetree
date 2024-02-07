@@ -4,10 +4,9 @@ import * as vscode from "vscode";
 import { HintManager } from "./HintManager";
 import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
 import {
-    getDeleteMessage,
+    confirmDeleteFile,
     getDescriptionAndLabel,
     getTabUri,
-    shouldUseTrash,
     sleep,
     traverseTree,
     updateHintSettings
@@ -965,19 +964,7 @@ export class FileExplorer {
         const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
-        const { message, detail } = getDeleteMessage(
-            entry.resourceUri,
-            entry.isFolder
-        );
-
-        const confirmation = await vscode.window.showInformationMessage(
-            message,
-            {
-                modal: true,
-                detail
-            },
-            shouldUseTrash() ? "Move to Trash" : "Delete"
-        );
+        const confirmation = await confirmDeleteFile(entry.resourceUri);
 
         if (confirmation) {
             const edit = new vscode.WorkspaceEdit();

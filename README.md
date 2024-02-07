@@ -33,6 +33,8 @@ Creates a new file tree view that can be used with voice commands.
 Apart from the settings declared by this extension there are other settings that affect its behavior:
 
 - `files.exclude`: Configure glob patterns for excluding files and folders.
+- `files.enableTrash`: Moves files/folders to the OS trash (recycle bin on Windows) when deleting. Disabling this will delete files/folders permanently.
+- `explorer.confirmDelete`: Controls whether the extension should ask for confirmation when deleting a file via the trash.
 - `explorer.excludeGitIgnore`: Controls if git ignored files should be shown. This setting can also be toggled using the command `tree git`.
 - `explorer.autoReveal`: Controls whether the extension should automatically reveal and select files when opening or focusing them. Bear in mind that only `true` or `false` values are possible, the option `focusNoScroll` will have the same effect as `true`.
 - `explorer.autoRevealExclude`: Configure glob patterns for excluding files and folders from being revealed and selected when they are opened or focused.
