@@ -2,9 +2,13 @@ import { minimatch } from "minimatch";
 import * as path from "path";
 import * as vscode from "vscode";
 import { HintManager } from "./HintManager";
-import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
 import {
     confirmDeleteFile,
+    exists,
+    getDescendantFolders,
+    getGitIgnored
+} from "./fileUtils";
+import {
     getDescriptionAndLabel,
     getTabUri,
     sleep,
