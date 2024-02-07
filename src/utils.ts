@@ -157,7 +157,7 @@ export function shouldUseTrash() {
 function getDeleteFolderMessage(uri: vscode.Uri) {
     const fileName = path.basename(uri.fsPath);
     const totalDirtyInFolder = vscode.workspace.textDocuments.filter(
-        (td) => td.isDirty && td.uri.fsPath.startsWith(uri.fsPath)
+        (td) => td.isDirty && td.uri.fsPath.startsWith(uri.fsPath + "/")
     ).length;
 
     if (totalDirtyInFolder > 0) {
