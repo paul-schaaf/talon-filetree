@@ -1,3 +1,6 @@
+## 0.6.8 [2024-02-10]
+- Improve deletion messages so they match the native explorer ones (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/38) by [david-tejada](https://github.com/david-tejada))
+
 ## 0.6.7 [2024-02-03]
 - Fix unnecessary reveals of files (thanks to PRs [35](https://github.com/paul-schaaf/talon-filetree/pull/35) and [36](https://github.com/paul-schaaf/talon-filetree/pull/36) by [david-tejada](https://github.com/david-tejada))
 
