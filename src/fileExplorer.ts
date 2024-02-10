@@ -1,7 +1,13 @@
-import * as vscode from "vscode";
+import { minimatch } from "minimatch";
 import * as path from "path";
+import * as vscode from "vscode";
 import { HintManager } from "./HintManager";
-import { exists, getDescendantFolders, getGitIgnored } from "./fileUtils";
+import {
+    confirmDeleteFile,
+    exists,
+    getDescendantFolders,
+    getGitIgnored
+} from "./fileUtils";
 import {
     getDescriptionAndLabel,
     getTabUri,
@@ -9,7 +15,6 @@ import {
     traverseTree,
     updateHintSettings
 } from "./utils";
-import { minimatch } from "minimatch";
 
 export class FileDataProvider implements vscode.TreeDataProvider<Entry> {
     private readonly _onDidChangeTreeData: vscode.EventEmitter<
@@ -963,18 +968,15 @@ export class FileExplorer {
         const entry = this.treeDataProvider.getEntryFromHint(hint);
         await this.treeView.reveal(entry);
 
-        const selection = await vscode.window.showInformationMessage(
-            `Are you sure you want to delete ${entry.resourceUri.fsPath}?`,
-            { modal: true },
-            "Yes",
-            "No"
-        );
+        const confirmation = await confirmDeleteFile(entry.resourceUri);
 
-        if (selection === "Yes") {
-            await vscode.workspace.fs.delete(entry.resourceUri, {
-                recursive: true,
-                useTrash: true
-            });
+        if (confirmation) {
+            const edit = new vscode.WorkspaceEdit();
+            edit.deleteFile(entry.resourceUri, { recursive: true });
+            const success = await vscode.workspace.applyEdit(edit);
+            if (!success) {
+                throw new Error(`Failed to delete file.`);
+            }
         }
     }
 }
