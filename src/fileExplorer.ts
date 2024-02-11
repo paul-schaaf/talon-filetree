@@ -625,6 +625,11 @@ export class FileExplorer {
             async () =>
                 this.showMessageIfError(async () => this.focusCurrentFile())
         );
+        vscode.commands.registerCommand(
+            "talon-filetree.findInFolder",
+            async (hint: string) =>
+                this.showMessageIfError(async () => this.findInFolder(hint))
+        );
     }
 
     private async handleActiveTabChange(activeTab: vscode.Tab) {
@@ -761,6 +766,22 @@ export class FileExplorer {
         }
 
         await this.revealFile(uri, true);
+    }
+
+    private async findInFolder(hint: string) {
+        const entry = this.treeDataProvider.getEntryFromHint(hint);
+
+        const folderEntry = entry.isFolder ? entry : entry.parent;
+        const folderUri =
+            folderEntry?.resourceUri ??
+            vscode.workspace.getWorkspaceFolder(entry.resourceUri)!.uri;
+
+        await this.treeView.reveal(folderEntry ?? entry);
+
+        await vscode.commands.executeCommand(
+            "filesExplorer.findInFolder",
+            folderUri
+        );
     }
 
     private async toggleDirectoryOrOpenFile(hint: string) {
