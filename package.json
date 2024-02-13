@@ -58,56 +58,6 @@
                 }
             }
         },
-        "commands": [
-            {
-                "command": "talon-filetree.toggleDirectoryOrOpenFile",
-                "title": "Toggle Directory Or Open File"
-            },
-            {
-                "command": "talon-filetree.revealCurrentFile",
-                "title": "Reveal Current File"
-            },
-            {
-                "command": "talon-filetree.toggleGitIgnoredFiles",
-                "title": "Toggle Git Ignored Files"
-            },
-            {
-                "command": "talon-filetree.closeParent",
-                "title": "Close Parent"
-            },
-            {
-                "command": "talon-filetree.moveFile",
-                "title": "Move File"
-            },
-            {
-                "command": "talon-filetree.openFile",
-                "title": "Open File"
-            },
-            {
-                "command": "talon-filetree.renameFile",
-                "title": "Rename File"
-            },
-            {
-                "command": "talon-filetree.expandDirectory",
-                "title": "Expand Directory"
-            },
-            {
-                "command": "talon-filetree.createFile",
-                "title": "Create File"
-            },
-            {
-                "command": "talon-filetree.deleteFile",
-                "title": "Delete File"
-            },
-            {
-                "command": "talon-filetree.collapseRoot",
-                "title": "Collapse Root"
-            },
-            {
-                "command": "talon-filetree.select",
-                "title": "Select"
-            }
-        ],
         "viewsContainers": {
             "activitybar": [
                 {
