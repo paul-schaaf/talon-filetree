@@ -1,3 +1,8 @@
+## 0.6.9 [2024-02-13]
+
+- add "Find in Folder" functionality (remember to pull from [talon-commands repo](https://github.com/paul-schaaf/talon-filetree-commands)) (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/39) by [david-tejada](https://github.com/david-tejada))
+- remove all commands from command palette
+
 ## 0.6.8 [2024-02-10]
 - Improve deletion messages so they match the native explorer ones (thanks to [PR](https://github.com/paul-schaaf/talon-filetree/pull/38) by [david-tejada](https://github.com/david-tejada))
 
