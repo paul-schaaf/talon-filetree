@@ -19,6 +19,7 @@ Creates a new file tree view that can be used with voice commands.
 - Create files
 - Delete files
 - Select files (useful for scrolling through file tree using keys and centering files in tree view)
+- Finding files in folder
 
 ## Settings
 
